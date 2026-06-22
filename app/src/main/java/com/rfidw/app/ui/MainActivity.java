@@ -21,12 +21,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.chip.Chip;
-import com.google.android.material.chip.ChipGroup;
 import com.rfidw.app.R;
 import com.rfidw.app.csv.CsvStore;
 import com.rfidw.app.data.Tudu;
@@ -46,7 +45,9 @@ public class MainActivity extends AppCompatActivity {
     // klávesy spouště čtečky (Chainway C5 a příbuzné)
     private static final int[] TRIGGER_KEYS = {139, 280, 293, 311, 312, 522, 523, 0x3E8};
 
-    private enum TriggerMode { EPC, PASSWORD, LOCK }
+    private static final int TRIGGER_STEP_EPC = 0;
+    private static final int TRIGGER_STEP_PWD = 1;
+    private static final int TRIGGER_STEP_LOCK = 2;
 
     private final UhfManager uhf = new UhfManager();
     private final EpcModel epc = new EpcModel();
@@ -61,15 +62,20 @@ public class MainActivity extends AppCompatActivity {
     private CsvAdapter csvAdapter;
     private SharedPreferences prefs;
 
-    private TriggerMode triggerMode = TriggerMode.EPC;
+    /** Aktuální krok fyzického spouště: 0=EPC, 1=heslo, 2=lock */
+    private int triggerStep = TRIGGER_STEP_EPC;
+    private boolean step1Done, step2Done, step3Done, step4Done;
+    private boolean suppressSpinnerCallbacks;
 
     // view reference
     private TextView tvReaderStatus, tvEpcPreview, tvEpcValid, tvSourceFile,
-            tvVyhybkaInfo, tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult;
+            tvVyhybkaInfo, tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult,
+            tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
+            step1Circle, step2Circle, step3Circle, step4Circle;
+    private View summary1;
     private Spinner spTudu, spVyhybka;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
-    private ChipGroup chipTriggerMode;
 
     // řádky šablony (kontejnery z include)
     private View[] rows = new View[7];
@@ -82,13 +88,14 @@ public class MainActivity extends AppCompatActivity {
 
         bindViews();
         setupCollapsibles();
-        setupTriggerMode();
         setupTemplateRows();
         setupCsv();
         setupListeners();
 
         epc.idRfid = prefs.getLong("idRfid", 1);
         refreshTemplate();
+        updateSummary1();
+        updateStepIndicators();
 
         initReaderAsync();
     }
@@ -103,6 +110,14 @@ public class MainActivity extends AppCompatActivity {
         tvCsvPath = findViewById(R.id.tvCsvPath);
         tvPwdWriteResult = findViewById(R.id.tvPwdWriteResult);
         tvLockResult = findViewById(R.id.tvLockResult);
+        tvSummaryTudu = findViewById(R.id.tvSummaryTudu);
+        tvSummaryVyhybka = findViewById(R.id.tvSummaryVyhybka);
+        tvSummaryCast = findViewById(R.id.tvSummaryCast);
+        summary1 = findViewById(R.id.summary1);
+        step1Circle = findViewById(R.id.step1Circle);
+        step2Circle = findViewById(R.id.step2Circle);
+        step3Circle = findViewById(R.id.step3Circle);
+        step4Circle = findViewById(R.id.step4Circle);
         spTudu = findViewById(R.id.spTudu);
         spVyhybka = findViewById(R.id.spVyhybka);
         etAccessPwd = findViewById(R.id.etAccessPwd);
@@ -111,7 +126,6 @@ public class MainActivity extends AppCompatActivity {
         etPwdNew = findViewById(R.id.etPwdNew);
         etLockAccessPwd = findViewById(R.id.etLockAccessPwd);
         cbAutoCsv = findViewById(R.id.cbAutoCsv);
-        chipTriggerMode = findViewById(R.id.chipTriggerMode);
 
         rows[0] = findViewById(R.id.row1);
         rows[1] = findViewById(R.id.row2);
@@ -125,53 +139,66 @@ public class MainActivity extends AppCompatActivity {
     // ---------- rozbalovací karty ----------
 
     private void setupCollapsibles() {
-        toggle(R.id.header1, R.id.body1);
-        toggle(R.id.header2, R.id.body2);
-        toggle(R.id.header3, R.id.body3);
-        toggle(R.id.header4, R.id.body4);
-        toggle(R.id.header5, R.id.body5);
+        toggle(R.id.header1, R.id.body1, R.id.summary1);
+        toggle(R.id.header2, R.id.body2, 0);
+        toggle(R.id.header3, R.id.body3, 0);
+        toggle(R.id.header4, R.id.body4, 0);
+        toggle(R.id.header5, R.id.body5, 0);
     }
 
-    private void toggle(int headerId, int bodyId) {
+    private void toggle(int headerId, int bodyId, int summaryId) {
         TextView header = findViewById(headerId);
         View body = findViewById(bodyId);
+        View summary = summaryId != 0 ? findViewById(summaryId) : null;
         header.setOnClickListener(v -> {
             boolean vis = body.getVisibility() == View.VISIBLE;
             body.setVisibility(vis ? View.GONE : View.VISIBLE);
             String t = header.getText().toString();
             header.setText((vis ? "▸" : "▾") + t.substring(1));
-        });
-    }
-
-    private void setupTriggerMode() {
-        String saved = prefs.getString("triggerMode", TriggerMode.EPC.name());
-        try {
-            triggerMode = TriggerMode.valueOf(saved);
-        } catch (Exception ignored) {
-            triggerMode = TriggerMode.EPC;
-        }
-        selectTriggerChip(triggerMode);
-
-        chipTriggerMode.setOnCheckedStateChangeListener((group, checkedIds) -> {
-            if (checkedIds.isEmpty()) return;
-            int id = checkedIds.get(0);
-            if (id == R.id.chipTriggerPwd) {
-                triggerMode = TriggerMode.PASSWORD;
-            } else if (id == R.id.chipTriggerLock) {
-                triggerMode = TriggerMode.LOCK;
-            } else {
-                triggerMode = TriggerMode.EPC;
+            if (summary != null) {
+                summary.setVisibility(vis ? View.VISIBLE : View.GONE);
             }
-            prefs.edit().putString("triggerMode", triggerMode.name()).apply();
         });
     }
 
-    private void selectTriggerChip(TriggerMode mode) {
-        int chipId = R.id.chipTriggerEpc;
-        if (mode == TriggerMode.PASSWORD) chipId = R.id.chipTriggerPwd;
-        else if (mode == TriggerMode.LOCK) chipId = R.id.chipTriggerLock;
-        Chip chip = findViewById(chipId);
-        if (chip != null) chip.setChecked(true);
+    // ---------- indikátor kroků ----------
+
+    private void updateStepIndicators() {
+        setStepCircle(step1Circle, step1Done, "1");
+        setStepCircle(step2Circle, step2Done, "2");
+        setStepCircle(step3Circle, step3Done, "3");
+        setStepCircle(step4Circle, step4Done, "4");
+    }
+
+    private void setStepCircle(TextView circle, boolean done, String number) {
+        if (done) {
+            circle.setText("✓");
+            circle.setBackgroundResource(R.drawable.step_circle_done);
+            circle.setTextColor(0xFFFFFFFF);
+        } else {
+            circle.setText(number);
+            circle.setBackgroundResource(R.drawable.step_circle_pending);
+            circle.setTextColor(ContextCompat.getColor(this, R.color.text_muted));
+        }
+    }
+
+    private void updateStep1() {
+        step1Done = currentTudu != null && currentVyhybka != null
+                && epc.tudu != null && !epc.tudu.isEmpty();
+        updateStepIndicators();
+    }
+
+    private void updateSummary1() {
+        tvSummaryTudu.setText(epc.tudu == null || epc.tudu.isEmpty() ? "—" : epc.tudu);
+        tvSummaryVyhybka.setText(epc.vyhybka > 0 ? String.valueOf(epc.vyhybka) : "—");
+        tvSummaryCast.setText(epc.cast > 0 ? String.valueOf(epc.cast) : "—");
+    }
+
+    private void resetTagWorkflow() {
+        triggerStep = TRIGGER_STEP_EPC;
+        step2Done = false;
+        step3Done = false;
+        updateStepIndicators();
     }
 
     // ---------- šablona EPC ----------
@@ -198,7 +225,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         valueWatcher(0, s -> { epc.year = s; });
-        valueWatcher(5, s -> { epc.cast = parseInt(s, epc.cast); });
+        valueWatcher(5, s -> {
+            epc.cast = parseInt(s, epc.cast);
+            updateSummary1();
+        });
         valueWatcher(6, s -> { epc.idRfid = parseLong(s, epc.idRfid); });
 
         nameWatcher(0, s -> epc.nameYear = s);
@@ -286,6 +316,7 @@ public class MainActivity extends AppCompatActivity {
 
         spTudu.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                if (suppressSpinnerCallbacks) return;
                 if (pos >= 0 && pos < tuduList.size()) selectTudu(tuduList.get(pos));
             }
             public void onNothingSelected(AdapterView<?> p) { }
@@ -293,6 +324,7 @@ public class MainActivity extends AppCompatActivity {
 
         spVyhybka.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                if (suppressSpinnerCallbacks) return;
                 if (currentTudu != null && pos >= 0 && pos < currentTudu.vyhybky.size()) {
                     selectVyhybka(currentTudu.vyhybky.get(pos), true);
                 }
@@ -301,27 +333,11 @@ public class MainActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.btnApplyPower).setOnClickListener(v -> applyPower());
-        findViewById(R.id.btnWrite).setOnClickListener(v -> {
-            triggerMode = TriggerMode.EPC;
-            selectTriggerChip(triggerMode);
-            doWrite();
-        });
-        findViewById(R.id.btnWritePwd).setOnClickListener(v -> {
-            triggerMode = TriggerMode.PASSWORD;
-            selectTriggerChip(triggerMode);
-            doWritePassword();
-        });
-        findViewById(R.id.btnLock).setOnClickListener(v -> {
-            triggerMode = TriggerMode.LOCK;
-            selectTriggerChip(triggerMode);
-            doLock();
-        });
+        findViewById(R.id.btnWrite).setOnClickListener(v -> doWrite());
+        findViewById(R.id.btnWritePwd).setOnClickListener(v -> doWritePassword());
+        findViewById(R.id.btnLock).setOnClickListener(v -> doLock());
         findViewById(R.id.btnExportCsv).setOnClickListener(v -> exportCsv());
-        findViewById(R.id.btnClearCsv).setOnClickListener(v -> {
-            csvStore.clear();
-            csvAdapter.setData(csvStore.getRows());
-            toast("Tabulka vymazána");
-        });
+        findViewById(R.id.btnClearCsv).setOnClickListener(v -> deleteLastCsvRow());
     }
 
     // ---------- výběr souboru / TUDU ----------
@@ -388,6 +404,8 @@ public class MainActivity extends AppCompatActivity {
             tvVyhybkaInfo.setText("TUDU nemá definované výhybky – zadejte výhybku a část ručně.");
         }
         refreshTemplate();
+        updateStep1();
+        updateSummary1();
     }
 
     private void selectVyhybka(Tudu.Vyhybka v, boolean resetCast) {
@@ -397,6 +415,67 @@ public class MainActivity extends AppCompatActivity {
         tvVyhybkaInfo.setText("Výhybka " + v.cislo + " • části " + v.castMin + "–" + v.castMax
                 + "  (TUDU " + (currentTudu != null ? currentTudu.code : "-") + ")");
         refreshTemplate();
+        updateStep1();
+        updateSummary1();
+    }
+
+    private void restoreSelectionFromRow(CsvStore.Row row) {
+        if (row == null) return;
+        epc.year = row.rok;
+        epc.tudu = row.tudu;
+        epc.vyhybka = parseInt(row.vyhybka, epc.vyhybka);
+        epc.cast = parseInt(row.cast, epc.cast);
+        epc.idRfid = parseLong(row.idRfid, epc.idRfid);
+        prefs.edit().putLong("idRfid", epc.idRfid).apply();
+
+        suppressSpinnerCallbacks = true;
+        int tuduPos = -1;
+        for (int i = 0; i < tuduList.size(); i++) {
+            if (tuduList.get(i).code.equals(row.tudu)) {
+                tuduPos = i;
+                break;
+            }
+        }
+        if (tuduPos >= 0) {
+            currentTudu = tuduList.get(tuduPos);
+            spTudu.setSelection(tuduPos);
+            List<String> labels = new ArrayList<>();
+            for (Tudu.Vyhybka v : currentTudu.vyhybky) labels.add("Výhybka " + v.cislo);
+            ArrayAdapter<String> a = new ArrayAdapter<>(this,
+                    android.R.layout.simple_spinner_dropdown_item, labels);
+            spVyhybka.setAdapter(a);
+            int vyhybkaPos = -1;
+            for (int i = 0; i < currentTudu.vyhybky.size(); i++) {
+                if (currentTudu.vyhybky.get(i).cislo == epc.vyhybka) {
+                    vyhybkaPos = i;
+                    break;
+                }
+            }
+            if (vyhybkaPos >= 0) {
+                currentVyhybka = currentTudu.vyhybky.get(vyhybkaPos);
+                spVyhybka.setSelection(vyhybkaPos);
+                tvVyhybkaInfo.setText("Výhybka " + currentVyhybka.cislo + " • části "
+                        + currentVyhybka.castMin + "–" + currentVyhybka.castMax
+                        + "  (TUDU " + currentTudu.code + ")");
+            }
+        }
+        suppressSpinnerCallbacks = false;
+
+        refreshTemplate();
+        updateStep1();
+        updateSummary1();
+        resetTagWorkflow();
+    }
+
+    private void deleteLastCsvRow() {
+        CsvStore.Row last = csvStore.removeLast();
+        if (last == null) {
+            toast("Tabulka je prázdná");
+            return;
+        }
+        csvAdapter.setData(csvStore.getRows());
+        restoreSelectionFromRow(last);
+        toast("Poslední záznam vymazán");
     }
 
     // ---------- zápis EPC ----------
@@ -410,6 +489,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void doWrite() {
+        step4Done = false;
+        updateStepIndicators();
         if (!epc.isValid()) {
             toast("EPC není validní");
             return;
@@ -438,7 +519,9 @@ public class MainActivity extends AppCompatActivity {
 
             if (cbAutoCsv.isChecked()) saveRowToCsv(writtenEpc, r.tid);
 
-            advanceAfterWrite();
+            triggerStep = TRIGGER_STEP_PWD;
+            step2Done = true;
+            updateStepIndicators();
         } else {
             tvWriteResult.setTextColor(0xFFC62828);
             tvWriteResult.setText("✗ " + r.message);
@@ -474,6 +557,9 @@ public class MainActivity extends AppCompatActivity {
                     + (r.oldEpc != null ? ("\nEPC: " + r.oldEpc) : "")
                     + (r.tid != null ? ("\nTID: " + r.tid) : ""));
             etLockAccessPwd.setText(etPwdNew.getText().toString().trim().toUpperCase());
+            triggerStep = TRIGGER_STEP_LOCK;
+            step3Done = true;
+            updateStepIndicators();
         } else {
             tvPwdWriteResult.setTextColor(0xFFC62828);
             tvPwdWriteResult.setText("✗ " + r.message);
@@ -504,6 +590,11 @@ public class MainActivity extends AppCompatActivity {
             tvLockResult.setText("✓ " + r.message
                     + (r.oldEpc != null ? ("\nEPC: " + r.oldEpc) : "")
                     + (r.tid != null ? ("\nTID: " + r.tid) : ""));
+            step4Done = true;
+            updateStepIndicators();
+            advanceAfterWrite();
+            resetTagWorkflow();
+            updateSummary1();
         } else {
             tvLockResult.setTextColor(0xFFC62828);
             tvLockResult.setText("✗ " + r.message);
@@ -544,6 +635,7 @@ public class MainActivity extends AppCompatActivity {
             epc.cast += 1;
         }
         refreshTemplate();
+        updateSummary1();
     }
 
     private void advanceToNextVyhybka() {
@@ -598,11 +690,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void runTriggerAction() {
-        switch (triggerMode) {
-            case PASSWORD:
+        switch (triggerStep) {
+            case TRIGGER_STEP_PWD:
                 doWritePassword();
                 break;
-            case LOCK:
+            case TRIGGER_STEP_LOCK:
                 doLock();
                 break;
             default:

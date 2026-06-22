@@ -34,63 +34,133 @@
                 android:textSize="13sp"/>
         </LinearLayout>
 
-        <!-- Výběr akce fyzického tlačítka čtečky -->
-        <com.google.android.material.card.MaterialCardView
+        <!-- Indikátor kroků -->
+        <LinearLayout
+            android:id="@+id/stepIndicator"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            app:cardBackgroundColor="@color/card"
-            app:cardCornerRadius="14dp"
-            app:cardElevation="0dp"
-            app:strokeColor="#E2E6EB"
-            app:strokeWidth="1dp">
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingBottom="12dp">
 
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
                 <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Spouště čtečky"
-                    android:textColor="@color/text"
-                    android:textSize="13sp"
+                    android:id="@+id/step1Circle"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/step_circle_pending"
+                    android:gravity="center"
+                    android:text="1"
+                    android:textColor="@color/text_muted"
+                    android:textSize="14sp"
                     android:textStyle="bold"/>
-
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/chipTriggerMode"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:paddingTop="6dp"
-                    app:singleSelection="true"
-                    app:selectionRequired="true">
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipTriggerEpc"
-                        style="@style/Widget.Material3.Chip.Filter"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:checked="true"
-                        android:text="@string/trigger_mode_epc"/>
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipTriggerPwd"
-                        style="@style/Widget.Material3.Chip.Filter"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/trigger_mode_pwd"/>
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipTriggerLock"
-                        style="@style/Widget.Material3.Chip.Filter"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/trigger_mode_lock"/>
-                </com.google.android.material.chip.ChipGroup>
+                    android:paddingTop="4dp"
+                    android:text="TUDU"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"/>
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+
+            <View
+                android:layout_width="16dp"
+                android:layout_height="2dp"
+                android:layout_gravity="center_vertical"
+                android:background="#D0D5DC"/>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/step2Circle"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/step_circle_pending"
+                    android:gravity="center"
+                    android:text="2"
+                    android:textColor="@color/text_muted"
+                    android:textSize="14sp"
+                    android:textStyle="bold"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:text="EPC"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"/>
+            </LinearLayout>
+
+            <View
+                android:layout_width="16dp"
+                android:layout_height="2dp"
+                android:layout_gravity="center_vertical"
+                android:background="#D0D5DC"/>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/step3Circle"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/step_circle_pending"
+                    android:gravity="center"
+                    android:text="3"
+                    android:textColor="@color/text_muted"
+                    android:textSize="14sp"
+                    android:textStyle="bold"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:text="Heslo"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"/>
+            </LinearLayout>
+
+            <View
+                android:layout_width="16dp"
+                android:layout_height="2dp"
+                android:layout_gravity="center_vertical"
+                android:background="#D0D5DC"/>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/step4Circle"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/step_circle_pending"
+                    android:gravity="center"
+                    android:text="4"
+                    android:textColor="@color/text_muted"
+                    android:textSize="14sp"
+                    android:textStyle="bold"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:text="Lock"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"/>
+            </LinearLayout>
+        </LinearLayout>
 
         <!-- ============ KARTA 1: Zdroj dat (TUDU) ============ -->
         <LinearLayout
@@ -165,6 +235,99 @@
                     android:textColor="@color/text_muted"
                     android:textSize="12sp"/>
             </LinearLayout>
+
+            <!-- Souhrn při zavřené kartě -->
+            <LinearLayout
+                android:id="@+id/summary1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/summary_bg"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="TUDU"
+                        android:textColor="@color/text_muted"
+                        android:textSize="10sp"
+                        android:textStyle="bold"/>
+                    <TextView
+                        android:id="@+id/tvSummaryTudu"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textColor="@color/primary_dark"
+                        android:textSize="15sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="#90CAF9"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Výhybka"
+                        android:textColor="@color/text_muted"
+                        android:textSize="10sp"
+                        android:textStyle="bold"/>
+                    <TextView
+                        android:id="@+id/tvSummaryVyhybka"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textColor="@color/primary_dark"
+                        android:textSize="15sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="#90CAF9"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Část"
+                        android:textColor="@color/text_muted"
+                        android:textSize="10sp"
+                        android:textStyle="bold"/>
+                    <TextView
+                        android:id="@+id/tvSummaryCast"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textColor="@color/primary_dark"
+                        android:textSize="15sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
         <!-- ============ EPC NÁHLED – vždy viditelný ============ -->
@@ -203,7 +366,7 @@
                 android:id="@+id/header2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="▾ 2. Šablona EPC a zápis"
+                android:text="▸ 2. Šablona EPC a zápis"
                 android:textColor="@color/primary_dark"
                 android:textSize="16sp"
                 android:textStyle="bold"/>
@@ -213,7 +376,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingTop="10dp">
+                android:paddingTop="10dp"
+                android:visibility="gone">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -297,7 +461,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:backgroundTint="@color/accent"
-                android:text="ZAPSAT  (lze i tlačítkem čtečky)"
+                android:text="@string/btn_write_epc"
                 android:textColor="#FFFFFF"/>
 
             <TextView
@@ -322,7 +486,7 @@
                 android:id="@+id/header4"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="▾ 4. Zaheslování – zápis access hesla"
+                android:text="▸ 4. Zaheslování – zápis access hesla"
                 android:textColor="@color/primary_dark"
                 android:textSize="16sp"
                 android:textStyle="bold"/>
@@ -332,7 +496,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingTop="10dp">
+                android:paddingTop="10dp"
+                android:visibility="gone">
 
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content">
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content"
@@ -403,7 +568,7 @@
                 android:id="@+id/header5"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="▾ 5. Zamčení tagu"
+                android:text="▸ 5. Zamčení tagu"
                 android:textColor="@color/primary_dark"
                 android:textSize="16sp"
                 android:textStyle="bold"/>
@@ -413,7 +578,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingTop="10dp">
+                android:paddingTop="10dp"
+                android:visibility="gone">
 
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:gravity="center_vertical">
@@ -474,7 +640,7 @@
                 android:id="@+id/header3"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="▾ 3. Tabulka CSV"
+                android:text="▸ 3. Tabulka CSV"
                 android:textColor="@color/primary_dark"
                 android:textSize="16sp"
                 android:textStyle="bold"/>
@@ -484,7 +650,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:paddingTop="10dp">
+                android:paddingTop="10dp"
+                android:visibility="gone">
 
                 <CheckBox
                     android:id="@+id/cbAutoCsv"
@@ -510,7 +677,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="4dp"
-                        android:text="Vymazat"/>
+                        android:text="@string/btn_delete_last_csv"/>
                 </LinearLayout>
 
                 <TextView
