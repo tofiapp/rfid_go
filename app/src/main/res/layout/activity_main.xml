@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <!-- Hlavička -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:paddingBottom="8dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="RFID W"
+                android:textColor="@color/text"
+                android:textSize="22sp"
+                android:textStyle="bold"/>
+            <TextView
+                android:id="@+id/tvReaderStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Čtečka: …"
+                android:textColor="@color/text_muted"
+                android:textSize="13sp"/>
+        </LinearLayout>
+
+        <!-- ============ KARTA 1: Zdroj dat (TUDU) ============ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/card_bg"
+            android:orientation="vertical"
+            android:padding="14dp"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/header1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="▾ 1. Zdroj dat – výběr TUDU"
+                android:textColor="@color/primary_dark"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <LinearLayout
+                android:id="@+id/body1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="10dp">
+
+                <Button
+                    android:id="@+id/btnPickSource"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Vybrat soubor (.csv / .sql)"/>
+
+                <TextView
+                    android:id="@+id/tvSourceFile"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:text="Žádný soubor"
+                    android:textColor="@color/text_muted"
+                    android:textSize="12sp"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="10dp"
+                    android:text="TUDU:"
+                    android:textColor="@color/text"
+                    android:textStyle="bold"/>
+                <Spinner
+                    android:id="@+id/spTudu"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="Výhybka:"
+                    android:textColor="@color/text"
+                    android:textStyle="bold"/>
+                <Spinner
+                    android:id="@+id/spVyhybka"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+
+                <TextView
+                    android:id="@+id/tvVyhybkaInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="6dp"
+                    android:text=""
+                    android:textColor="@color/text_muted"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ============ EPC NÁHLED – vždy viditelný ============ -->
+        <TextView
+            android:id="@+id/tvEpcPreview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/epc_bg"
+            android:fontFamily="monospace"
+            android:gravity="center"
+            android:padding="14dp"
+            android:layout_marginBottom="4dp"
+            android:text="----–----–----–----–----–----"
+            android:textColor="#7FE0FF"
+            android:textSize="18sp"
+            android:textStyle="bold"/>
+        <TextView
+            android:id="@+id/tvEpcValid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingBottom="10dp"
+            android:text=""
+            android:textSize="12sp"/>
+
+        <!-- ============ KARTA 2: Šablona EPC + zápis ============ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/card_bg"
+            android:orientation="vertical"
+            android:padding="14dp"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/header2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="▾ 2. Šablona EPC a zápis"
+                android:textColor="@color/primary_dark"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <LinearLayout
+                android:id="@+id/body2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="10dp">
+
+                <!-- záhlaví tabulky šablony -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="0.6" android:text="#" android:textStyle="bold"
+                        android:textColor="@color/text_muted" android:textSize="12sp"/>
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="2.4" android:text="Kategorie (název)" android:textStyle="bold"
+                        android:textColor="@color/text_muted" android:textSize="12sp"/>
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="2" android:text="Hodnota" android:textStyle="bold"
+                        android:textColor="@color/text_muted" android:textSize="12sp"/>
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1.4" android:text="HEX" android:textStyle="bold"
+                        android:gravity="end"
+                        android:textColor="@color/text_muted" android:textSize="12sp"/>
+                </LinearLayout>
+
+                <!-- Řádek 1: Rok -->
+                <include layout="@layout/row_template" android:id="@+id/row1"/>
+                <!-- Řádek 2: TUDU 1-4 -->
+                <include layout="@layout/row_template" android:id="@+id/row2"/>
+                <!-- Řádek 3: TUDU 5 -->
+                <include layout="@layout/row_template" android:id="@+id/row3"/>
+                <!-- Řádek 4: TUDU 6 -->
+                <include layout="@layout/row_template" android:id="@+id/row4"/>
+                <!-- Řádek 5: Výhybka -->
+                <include layout="@layout/row_template" android:id="@+id/row5"/>
+                <!-- Řádek 6: Část výhybky -->
+                <include layout="@layout/row_template" android:id="@+id/row6"/>
+                <!-- Řádek 7: ID_RFID -->
+                <include layout="@layout/row_template" android:id="@+id/row7"/>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp"
+                    android:background="#E2E6EB" android:layout_marginTop="12dp"
+                    android:layout_marginBottom="10dp"/>
+
+                <!-- Rozhraní pro zápis -->
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="Rozhraní zápisu" android:textStyle="bold"
+                    android:textColor="@color/text"/>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:paddingTop="6dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="bank: EPC"
+                        android:textColor="@color/text" android:fontFamily="monospace"/>
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="ptr: 2"
+                        android:textColor="@color/text" android:fontFamily="monospace"/>
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="Len: 6"
+                        android:textColor="@color/text" android:fontFamily="monospace"/>
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:gravity="center_vertical" android:paddingTop="8dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Access pwd: " android:textColor="@color/text"/>
+                    <EditText android:id="@+id/etAccessPwd"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="00000000"
+                        android:fontFamily="monospace" android:maxLength="8"
+                        android:inputType="textCapCharacters"/>
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:gravity="center_vertical" android:paddingTop="4dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Výkon (dBm): " android:textColor="@color/text"/>
+                    <EditText android:id="@+id/etPower"
+                        android:layout_width="60dp" android:layout_height="wrap_content"
+                        android:text="30" android:inputType="number" android:maxLength="2"/>
+                    <Button android:id="@+id/btnApplyPower"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Nastavit" android:textSize="12sp"/>
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnWrite"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/btn_write"
+                    android:text="ZAPSAT  (lze i tlačítkem čtečky)"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/tvWriteResult"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text=""
+                    android:textSize="13sp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ============ KARTA 3: Zápis do CSV ============ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/card_bg"
+            android:orientation="vertical"
+            android:padding="14dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:id="@+id/header3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="▾ 3. Tabulka CSV"
+                android:textColor="@color/primary_dark"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <LinearLayout
+                android:id="@+id/body3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="10dp">
+
+                <CheckBox
+                    android:id="@+id/cbAutoCsv"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Po zápisu EPC automaticky uložit řádek do CSV"/>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:paddingTop="4dp">
+                    <Button android:id="@+id/btnExportCsv"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="Sdílet / Export"/>
+                    <Button android:id="@+id/btnClearCsv"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="Vymazat"/>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvCsvPath"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:text=""
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"/>
+
+                <!-- záhlaví tabulky -->
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp">
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <include layout="@layout/row_csv_header"/>
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvCsv"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:nestedScrollingEnabled="false"/>
+                    </LinearLayout>
+                </HorizontalScrollView>
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
