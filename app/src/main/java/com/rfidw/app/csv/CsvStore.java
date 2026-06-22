@@ -69,6 +69,16 @@ public class CsvStore {
         save();
     }
 
+    /** Odstraní poslední vložený řádek a uloží na disk. Vrátí smazaný řádek nebo null. */
+    public synchronized Row removeLast() {
+        if (rows.isEmpty()) return null;
+        List<Row> list = getRows();
+        Row last = list.get(list.size() - 1);
+        rows.remove(last.idRfid);
+        save();
+        return last;
+    }
+
     // ----------------------------------------------------------- IO
 
     private void load() {
