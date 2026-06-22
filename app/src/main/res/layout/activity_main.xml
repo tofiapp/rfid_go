@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true">
@@ -20,9 +21,9 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="RFID W"
+                android:text="@string/app_name"
                 android:textColor="@color/text"
-                android:textSize="22sp"
+                android:textSize="24sp"
                 android:textStyle="bold"/>
             <TextView
                 android:id="@+id/tvReaderStatus"
@@ -32,6 +33,64 @@
                 android:textColor="@color/text_muted"
                 android:textSize="13sp"/>
         </LinearLayout>
+
+        <!-- Výběr akce fyzického tlačítka čtečky -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardBackgroundColor="@color/card"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#E2E6EB"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Spouště čtečky"
+                    android:textColor="@color/text"
+                    android:textSize="13sp"
+                    android:textStyle="bold"/>
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipTriggerMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="6dp"
+                    app:singleSelection="true"
+                    app:selectionRequired="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipTriggerEpc"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="@string/trigger_mode_epc"/>
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipTriggerPwd"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/trigger_mode_pwd"/>
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipTriggerLock"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/trigger_mode_lock"/>
+                </com.google.android.material.chip.ChipGroup>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- ============ KARTA 1: Zdroj dat (TUDU) ============ -->
         <LinearLayout
@@ -58,7 +117,7 @@
                 android:orientation="vertical"
                 android:paddingTop="10dp">
 
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnPickSource"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -156,7 +215,6 @@
                 android:orientation="vertical"
                 android:paddingTop="10dp">
 
-                <!-- záhlaví tabulky šablony -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content">
@@ -175,26 +233,18 @@
                         android:textColor="@color/text_muted" android:textSize="12sp"/>
                 </LinearLayout>
 
-                <!-- Řádek 1: Rok -->
                 <include layout="@layout/row_template" android:id="@+id/row1"/>
-                <!-- Řádek 2: TUDU 1-4 -->
                 <include layout="@layout/row_template" android:id="@+id/row2"/>
-                <!-- Řádek 3: TUDU 5 -->
                 <include layout="@layout/row_template" android:id="@+id/row3"/>
-                <!-- Řádek 4: TUDU 6 -->
                 <include layout="@layout/row_template" android:id="@+id/row4"/>
-                <!-- Řádek 5: Výhybka -->
                 <include layout="@layout/row_template" android:id="@+id/row5"/>
-                <!-- Řádek 6: Část výhybky -->
                 <include layout="@layout/row_template" android:id="@+id/row6"/>
-                <!-- Řádek 7: ID_RFID -->
                 <include layout="@layout/row_template" android:id="@+id/row7"/>
 
                 <View android:layout_width="match_parent" android:layout_height="1dp"
                     android:background="#E2E6EB" android:layout_marginTop="12dp"
                     android:layout_marginBottom="10dp"/>
 
-                <!-- Rozhraní pro zápis -->
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="Rozhraní zápisu" android:textStyle="bold"
                     android:textColor="@color/text"/>
@@ -230,30 +280,185 @@
                     <EditText android:id="@+id/etPower"
                         android:layout_width="60dp" android:layout_height="wrap_content"
                         android:text="30" android:inputType="number" android:maxLength="2"/>
-                    <Button android:id="@+id/btnApplyPower"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Nastavit" android:textSize="12sp"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnApplyPower"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Nastavit"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnWrite"
+                style="@style/Widget.RfidGo.ActionButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:backgroundTint="@color/accent"
+                android:text="ZAPSAT  (lze i tlačítkem čtečky)"
+                android:textColor="#FFFFFF"/>
+
+            <TextView
+                android:id="@+id/tvWriteResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:text=""
+                android:textSize="13sp"/>
+        </LinearLayout>
+
+        <!-- ============ KARTA 4: Zaheslování – zápis access pwd ============ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/card_bg"
+            android:orientation="vertical"
+            android:padding="14dp"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/header4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="▾ 4. Zaheslování – zápis access hesla"
+                android:textColor="@color/primary_dark"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <LinearLayout
+                android:id="@+id/body4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="10dp">
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="bank: RESERVED"
+                        android:textColor="@color/text" android:fontFamily="monospace"/>
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="ptr: 2"
+                        android:textColor="@color/text" android:fontFamily="monospace"/>
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="len: 2"
+                        android:textColor="@color/text" android:fontFamily="monospace"/>
                 </LinearLayout>
 
-                <Button
-                    android:id="@+id/btnWrite"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/btn_write"
-                    android:text="ZAPSAT  (lze i tlačítkem čtečky)"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp"
-                    android:textStyle="bold"/>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:gravity="center_vertical" android:paddingTop="10dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="ACCESS PWD: " android:textColor="@color/text"
+                        android:textStyle="bold"/>
+                    <EditText android:id="@+id/etPwdAccess"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="00000000"
+                        android:fontFamily="monospace" android:maxLength="8"
+                        android:inputType="textCapCharacters"/>
+                </LinearLayout>
 
-                <TextView
-                    android:id="@+id/tvWriteResult"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text=""
-                    android:textSize="13sp"/>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:gravity="center_vertical" android:paddingTop="6dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="NEW PWD: " android:textColor="@color/text"
+                        android:textStyle="bold"/>
+                    <EditText android:id="@+id/etPwdNew"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:hint="12345678"
+                        android:fontFamily="monospace" android:maxLength="8"
+                        android:inputType="textCapCharacters"/>
+                </LinearLayout>
             </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnWritePwd"
+                style="@style/Widget.RfidGo.ActionButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:backgroundTint="@color/primary"
+                android:text="@string/btn_write_pwd"
+                android:textColor="#FFFFFF"/>
+
+            <TextView
+                android:id="@+id/tvPwdWriteResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:text=""
+                android:textSize="13sp"/>
+        </LinearLayout>
+
+        <!-- ============ KARTA 5: Zamčení tagu ============ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/card_bg"
+            android:orientation="vertical"
+            android:padding="14dp"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/header5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="▾ 5. Zamčení tagu"
+                android:textColor="@color/primary_dark"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <LinearLayout
+                android:id="@+id/body5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="10dp">
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:gravity="center_vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="NEW ACCESS PWD: " android:textColor="@color/text"
+                        android:textStyle="bold"/>
+                    <EditText android:id="@+id/etLockAccessPwd"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="00000000"
+                        android:fontFamily="monospace" android:maxLength="8"
+                        android:inputType="textCapCharacters"/>
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:gravity="center_vertical" android:paddingTop="8dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Lock code: " android:textColor="@color/text"
+                        android:textStyle="bold"/>
+                    <TextView android:id="@+id/tvLockCode"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="@string/lock_code_value"
+                        android:textColor="@color/primary_dark"
+                        android:fontFamily="monospace"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnLock"
+                style="@style/Widget.RfidGo.ActionButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:backgroundTint="@color/lock"
+                android:text="@string/btn_lock"
+                android:textColor="#FFFFFF"/>
+
+            <TextView
+                android:id="@+id/tvLockResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:text=""
+                android:textSize="13sp"/>
         </LinearLayout>
 
         <!-- ============ KARTA 3: Zápis do CSV ============ -->
@@ -290,12 +495,22 @@
 
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:paddingTop="4dp">
-                    <Button android:id="@+id/btnExportCsv"
-                        android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1" android:text="Sdílet / Export"/>
-                    <Button android:id="@+id/btnClearCsv"
-                        android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1" android:text="Vymazat"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnExportCsv"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="4dp"
+                        android:text="Sdílet / Export"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnClearCsv"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="4dp"
+                        android:text="Vymazat"/>
                 </LinearLayout>
 
                 <TextView
@@ -307,7 +522,6 @@
                     android:textColor="@color/text_muted"
                     android:textSize="11sp"/>
 
-                <!-- záhlaví tabulky -->
                 <HorizontalScrollView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

@@ -1,13 +1,13 @@
-# RFID W
+# RFID Go
 
 Android aplikace pro čtečku **Chainway C5** (vestavěný UHF UART modul, RSCJA/Chainway SDK).
-Slouží k **přepisu EPC** UHF tagů podle definované šablony a k **zápisu údajů o tagu do tabulky CSV**.
+Slouží k **přepisu EPC** UHF tagů podle definované šablony, **zaheslování** a **zamčení** tagů a k **zápisu údajů o tagu do tabulky CSV**.
 
 ---
 
 ## Co aplikace umí
 
-Aplikace má tři rozbalovací karty (náhled celého EPC je vidět pořád):
+Aplikace má pět rozbalovacích karet (náhled celého EPC je vidět pořád). Akční tlačítka zápisu a zamčení zůstávají vždy viditelná i při sbalené kartě.
 
 ### 1. Zdroj dat – výběr TUDU
 - Načte úseky **TUDU** ze souboru `.CSV` nebo `.SQL`.
@@ -50,7 +50,7 @@ Příklad: `1501J1`, výhybka `10`, část `1`, ID `30001` →
   - posune **část výhybky** o 1; po překročení maxima se vrátí na začátek a přepne na **další výhybku** v pořadí daného TUDU.
 
 ### 3. Tabulka CSV
-Po každém zápisu (lze vypnout) se uloží řádek do `rfid_w_output.csv`:
+Po každém zápisu EPC (lze vypnout) se uloží řádek do `rfid_go_output.csv`:
 
 | Sloupec | Zdroj |
 |---------|-------|
@@ -65,7 +65,26 @@ Po každém zápisu (lze vypnout) se uloží řádek do `rfid_w_output.csv`:
 Při zápisu stejného `ID_RFID` se daný řádek **přepíše**.
 Tabulku lze sdílet/exportovat tlačítkem **Sdílet / Export** nebo vymazat.
 
-Soubor je uložen v `Android/data/com.rfidw.app/files/rfid_w_output.csv`.
+Soubor je uložen v `Android/data/com.rfidw.app/files/rfid_go_output.csv`.
+
+### 4. Zaheslování – zápis access hesla
+- **bank RESERVED**, `ptr 2`, `len 2` (access password, 8 hex znaků)
+- Pole **ACCESS PWD** – aktuální heslo tagu (default `00000000`)
+- Pole **NEW PWD** – nové heslo (8 hex znaků)
+- Tlačítko **ZAPSAT** (vždy viditelné) zapíše nové access heslo na tag v dosahu
+
+### 5. Zamčení tagu
+- Pole **NEW ACCESS PWD** – heslo pro zamčení (po zápisu hesla se doplní automaticky)
+- **Lock code** – pevná hodnota `008020`
+- Tlačítko **ZAMKNOUT** (vždy viditelné) zamkne tag v dosahu
+
+### Spouště čtečky
+Nahoře lze vybrat, kterou akci provede fyzické tlačítko čtečky:
+- **Zápis EPC** (výchozí)
+- **Zápis hesla**
+- **Zamknout**
+
+Výběr se uloží a při stisku akčního tlačítka na obrazovce se automaticky přepne.
 
 ---
 
@@ -79,7 +98,7 @@ Projekt je standardní Android (Gradle). Otevřete v **Android Studiu** nebo př
 
 APK: `app/build/outputs/apk/debug/app-debug.apk`
 
-- `compileSdk 33`, `minSdk 21`, `targetSdk 30`, Java 8.
+- `compileSdk 34`, `minSdk 21`, `targetSdk 34`, Java 17, Material 3.
 - Knihovny čtečky a Excelu jsou v `app/libs/`:
   - `DeviceAPI_ver20251103_release.aar` – Chainway/RSCJA UHF SDK (obsahuje i nativní `.so`),
   - `poi-*`, `jxl.jar`, `xUtils-*` – ponechány pro budoucí export do XLSX.
@@ -96,7 +115,7 @@ app/src/main/java/com/rfidw/app/
 ├─ data/Tudu.java          – model TUDU + výhybky
 ├─ data/TuduLoader.java    – načítání z .csv / .sql
 ├─ csv/CsvStore.java       – výstupní CSV s přepisem podle ID_RFID
-├─ rfid/UhfManager.java    – obal nad RFIDWithUHFUART (čtení/zápis EPC, TID)
+├─ rfid/UhfManager.java    – obal nad RFIDWithUHFUART (EPC, heslo, zamčení)
 └─ ui/MainActivity.java    – obrazovka a propojení všeho
 ```
 

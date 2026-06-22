@@ -10,7 +10,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.RfidW">
+        android:theme="@style/Theme.RfidGo">
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
