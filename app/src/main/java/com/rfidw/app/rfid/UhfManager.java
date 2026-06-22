@@ -22,6 +22,12 @@ public class UhfManager {
     public static final int EPC_PTR = 2;
     public static final int EPC_LEN = 6;
 
+    // RESERVED: ptr=2 = access password (2 wordy = 8 hex znaků)
+    public static final int ACCESS_PWD_PTR = 2;
+    public static final int ACCESS_PWD_LEN = 2;
+
+    public static final String DEFAULT_LOCK_CODE = "008020";
+
     private RFIDWithUHFUART reader;
     private boolean ready = false;
 
@@ -80,20 +86,18 @@ public class UhfManager {
             r.message = "Čtečka není připravena.";
             return r;
         }
-        if (accessPwd == null || accessPwd.isEmpty()) accessPwd = "00000000";
+        accessPwd = normalizePwd(accessPwd);
         if (newEpc == null || newEpc.length() != 24) {
             r.message = "EPC musí mít 24 znaků.";
             return r;
         }
 
         try {
-            // 1) přečíst aktuální tag (EPC + TID)
             UHFTAGInfo info = reader.inventorySingleTag();
             if (info != null) {
                 r.oldEpc = info.getEPC();
                 r.tid = info.getTid();
             }
-            // pokud TID nepřišel z inventáře, dočti ho přímo
             if (r.tid == null || r.tid.isEmpty()) {
                 try {
                     String tid = reader.readData(accessPwd, BANK_TID, 0, EPC_LEN);
@@ -101,7 +105,6 @@ public class UhfManager {
                 } catch (Exception ignored) { }
             }
 
-            // 2) zapsat nový EPC: bank EPC, ptr 2, len 6
             boolean ok = reader.writeData(accessPwd, BANK_EPC, EPC_PTR, EPC_LEN, newEpc);
             r.success = ok;
             r.message = ok ? "EPC zapsáno." : "Zápis EPC se nezdařil (tag mimo dosah / špatné heslo).";
@@ -113,6 +116,84 @@ public class UhfManager {
         }
     }
 
+    /**
+     * Zapíše nové access heslo do RESERVED banky (ptr 2, len 2).
+     *
+     * @param accessPwd aktuální access heslo (8 hex)
+     * @param newPwd    nové access heslo (8 hex)
+     */
+    public synchronized WriteResult writeAccessPassword(String accessPwd, String newPwd) {
+        WriteResult r = new WriteResult();
+        if (!ready || reader == null) {
+            r.message = "Čtečka není připravena.";
+            return r;
+        }
+        accessPwd = normalizePwd(accessPwd);
+        newPwd = normalizePwd(newPwd);
+        if (!isValidHexPwd(newPwd)) {
+            r.message = "Nové heslo musí mít 8 hex znaků.";
+            return r;
+        }
+
+        try {
+            UHFTAGInfo info = reader.inventorySingleTag();
+            if (info != null) {
+                r.oldEpc = info.getEPC();
+                r.tid = info.getTid();
+            }
+            if (info == null) {
+                r.message = "Tag nenalezen v dosahu.";
+                return r;
+            }
+
+            boolean ok = reader.writeData(accessPwd, BANK_RESERVED, ACCESS_PWD_PTR, ACCESS_PWD_LEN, newPwd);
+            r.success = ok;
+            r.message = ok ? "Access heslo zapsáno." : "Zápis hesla se nezdařil (špatné heslo / tag zamčen).";
+            return r;
+        } catch (Exception e) {
+            r.success = false;
+            r.message = "Chyba zápisu hesla: " + e.getMessage();
+            return r;
+        }
+    }
+
+    /**
+     * Zamkne paměť tagu podle lock kódu (např. 008020).
+     *
+     * @param accessPwd aktuální access heslo (8 hex)
+     * @param lockCode  lock payload (6 hex znaků)
+     */
+    public synchronized WriteResult lockTag(String accessPwd, String lockCode) {
+        WriteResult r = new WriteResult();
+        if (!ready || reader == null) {
+            r.message = "Čtečka není připravena.";
+            return r;
+        }
+        accessPwd = normalizePwd(accessPwd);
+        if (lockCode == null || lockCode.isEmpty()) lockCode = DEFAULT_LOCK_CODE;
+
+        try {
+            UHFTAGInfo info = reader.inventorySingleTag();
+            if (info != null) {
+                r.oldEpc = info.getEPC();
+                r.tid = info.getTid();
+            }
+            if (info == null) {
+                r.message = "Tag nenalezen v dosahu.";
+                return r;
+            }
+
+            boolean ok = reader.lockMem(accessPwd, lockCode);
+            r.success = ok;
+            r.message = ok ? "Tag zamčen." : "Zamčení se nezdařilo (špatné heslo / tag již zamčen).";
+            return r;
+        } catch (Exception e) {
+            r.success = false;
+            r.message = "Chyba zamčení: " + e.getMessage();
+            return r;
+        }
+    }
+
     /** Jednorázové přečtení tagu (EPC + TID), např. pro kontrolu. */
     public synchronized UHFTAGInfo readSingle() {
         try {
@@ -120,5 +201,15 @@ public class UhfManager {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static String normalizePwd(String pwd) {
+        if (pwd == null || pwd.isEmpty()) return "00000000";
+        String s = pwd.trim().toUpperCase();
+        return s.length() > 8 ? s.substring(0, 8) : s;
+    }
+
+    private static boolean isValidHexPwd(String pwd) {
+        return pwd != null && pwd.matches("[0-9A-Fa-f]{8}");
     }
 }

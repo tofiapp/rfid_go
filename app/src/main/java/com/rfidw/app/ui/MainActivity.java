@@ -14,19 +14,19 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.rfidw.app.R;
 import com.rfidw.app.csv.CsvStore;
 import com.rfidw.app.data.Tudu;
@@ -46,6 +46,8 @@ public class MainActivity extends AppCompatActivity {
     // klávesy spouště čtečky (Chainway C5 a příbuzné)
     private static final int[] TRIGGER_KEYS = {139, 280, 293, 311, 312, 522, 523, 0x3E8};
 
+    private enum TriggerMode { EPC, PASSWORD, LOCK }
+
     private final UhfManager uhf = new UhfManager();
     private final EpcModel epc = new EpcModel();
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -59,12 +61,15 @@ public class MainActivity extends AppCompatActivity {
     private CsvAdapter csvAdapter;
     private SharedPreferences prefs;
 
+    private TriggerMode triggerMode = TriggerMode.EPC;
+
     // view reference
     private TextView tvReaderStatus, tvEpcPreview, tvEpcValid, tvSourceFile,
-            tvVyhybkaInfo, tvWriteResult, tvCsvPath;
+            tvVyhybkaInfo, tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult;
     private Spinner spTudu, spVyhybka;
-    private EditText etAccessPwd, etPower;
+    private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
+    private ChipGroup chipTriggerMode;
 
     // řádky šablony (kontejnery z include)
     private View[] rows = new View[7];
@@ -73,15 +78,15 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        prefs = getSharedPreferences("rfidw", MODE_PRIVATE);
+        prefs = getSharedPreferences("rfidgo", MODE_PRIVATE);
 
         bindViews();
         setupCollapsibles();
+        setupTriggerMode();
         setupTemplateRows();
         setupCsv();
         setupListeners();
 
-        // obnovit poslední ID_RFID
         epc.idRfid = prefs.getLong("idRfid", 1);
         refreshTemplate();
 
@@ -96,11 +101,17 @@ public class MainActivity extends AppCompatActivity {
         tvVyhybkaInfo = findViewById(R.id.tvVyhybkaInfo);
         tvWriteResult = findViewById(R.id.tvWriteResult);
         tvCsvPath = findViewById(R.id.tvCsvPath);
+        tvPwdWriteResult = findViewById(R.id.tvPwdWriteResult);
+        tvLockResult = findViewById(R.id.tvLockResult);
         spTudu = findViewById(R.id.spTudu);
         spVyhybka = findViewById(R.id.spVyhybka);
         etAccessPwd = findViewById(R.id.etAccessPwd);
         etPower = findViewById(R.id.etPower);
+        etPwdAccess = findViewById(R.id.etPwdAccess);
+        etPwdNew = findViewById(R.id.etPwdNew);
+        etLockAccessPwd = findViewById(R.id.etLockAccessPwd);
         cbAutoCsv = findViewById(R.id.cbAutoCsv);
+        chipTriggerMode = findViewById(R.id.chipTriggerMode);
 
         rows[0] = findViewById(R.id.row1);
         rows[1] = findViewById(R.id.row2);
@@ -117,6 +128,8 @@ public class MainActivity extends AppCompatActivity {
         toggle(R.id.header1, R.id.body1);
         toggle(R.id.header2, R.id.body2);
         toggle(R.id.header3, R.id.body3);
+        toggle(R.id.header4, R.id.body4);
+        toggle(R.id.header5, R.id.body5);
     }
 
     private void toggle(int headerId, int bodyId) {
@@ -128,6 +141,37 @@ public class MainActivity extends AppCompatActivity {
             String t = header.getText().toString();
             header.setText((vis ? "▸" : "▾") + t.substring(1));
         });
+    }
+
+    private void setupTriggerMode() {
+        String saved = prefs.getString("triggerMode", TriggerMode.EPC.name());
+        try {
+            triggerMode = TriggerMode.valueOf(saved);
+        } catch (Exception ignored) {
+            triggerMode = TriggerMode.EPC;
+        }
+        selectTriggerChip(triggerMode);
+
+        chipTriggerMode.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) return;
+            int id = checkedIds.get(0);
+            if (id == R.id.chipTriggerPwd) {
+                triggerMode = TriggerMode.PASSWORD;
+            } else if (id == R.id.chipTriggerLock) {
+                triggerMode = TriggerMode.LOCK;
+            } else {
+                triggerMode = TriggerMode.EPC;
+            }
+            prefs.edit().putString("triggerMode", triggerMode.name()).apply();
+        });
+    }
+
+    private void selectTriggerChip(TriggerMode mode) {
+        int chipId = R.id.chipTriggerEpc;
+        if (mode == TriggerMode.PASSWORD) chipId = R.id.chipTriggerPwd;
+        else if (mode == TriggerMode.LOCK) chipId = R.id.chipTriggerLock;
+        Chip chip = findViewById(chipId);
+        if (chip != null) chip.setChecked(true);
     }
 
     // ---------- šablona EPC ----------
@@ -145,8 +189,7 @@ public class MainActivity extends AppCompatActivity {
             etName.setText(names[i]);
             EditText etVal = row.findViewById(R.id.etValue);
 
-            // hodnotová pole – editovatelnost dle řádku
-            boolean editableValue = (i == 0 || i == 5 || i == 6); // Rok, Část, ID_RFID
+            boolean editableValue = (i == 0 || i == 5 || i == 6);
             etVal.setFocusable(editableValue);
             etVal.setFocusableInTouchMode(editableValue);
             etVal.setClickable(editableValue);
@@ -154,12 +197,10 @@ public class MainActivity extends AppCompatActivity {
             if (i == 5 || i == 6) etVal.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
         }
 
-        // listener na hodnotová pole
         valueWatcher(0, s -> { epc.year = s; });
         valueWatcher(5, s -> { epc.cast = parseInt(s, epc.cast); });
         valueWatcher(6, s -> { epc.idRfid = parseLong(s, epc.idRfid); });
 
-        // názvy kategorií -> uloží se do modelu (jen informativně)
         nameWatcher(0, s -> epc.nameYear = s);
         nameWatcher(1, s -> epc.nameTudu14 = s);
         nameWatcher(2, s -> epc.nameTudu5 = s);
@@ -185,7 +226,6 @@ public class MainActivity extends AppCompatActivity {
                 cb.on(et.getText().toString().trim())));
     }
 
-    /** přepíše hodnoty + hex do všech řádků (po změně TUDU/výhybky/ID) */
     private void refreshTemplate() {
         setValue(0, epc.year);
         setValue(1, epc.f2Tudu14());
@@ -228,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
     // ---------- CSV ----------
 
     private void setupCsv() {
-        File out = new File(getExternalFilesDir(null), "rfid_w_output.csv");
+        File out = new File(getExternalFilesDir(null), "rfid_go_output.csv");
         csvStore = new CsvStore(out);
         tvCsvPath.setText(out.getAbsolutePath());
 
@@ -261,7 +301,21 @@ public class MainActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.btnApplyPower).setOnClickListener(v -> applyPower());
-        findViewById(R.id.btnWrite).setOnClickListener(v -> doWrite());
+        findViewById(R.id.btnWrite).setOnClickListener(v -> {
+            triggerMode = TriggerMode.EPC;
+            selectTriggerChip(triggerMode);
+            doWrite();
+        });
+        findViewById(R.id.btnWritePwd).setOnClickListener(v -> {
+            triggerMode = TriggerMode.PASSWORD;
+            selectTriggerChip(triggerMode);
+            doWritePassword();
+        });
+        findViewById(R.id.btnLock).setOnClickListener(v -> {
+            triggerMode = TriggerMode.LOCK;
+            selectTriggerChip(triggerMode);
+            doLock();
+        });
         findViewById(R.id.btnExportCsv).setOnClickListener(v -> exportCsv());
         findViewById(R.id.btnClearCsv).setOnClickListener(v -> {
             csvStore.clear();
@@ -345,7 +399,7 @@ public class MainActivity extends AppCompatActivity {
         refreshTemplate();
     }
 
-    // ---------- zápis ----------
+    // ---------- zápis EPC ----------
 
     private void applyPower() {
         int p = parseInt(etPower.getText().toString().trim(), 30);
@@ -391,6 +445,71 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // ---------- zápis access hesla ----------
+
+    private void doWritePassword() {
+        if (!uhf.isReady()) {
+            toast("Čtečka není připravena");
+            return;
+        }
+        final String accessPwd = etPwdAccess.getText().toString().trim();
+        final String newPwd = etPwdNew.getText().toString().trim();
+        if (!newPwd.matches("[0-9A-Fa-f]{8}")) {
+            toast("NEW PWD musí mít 8 hex znaků");
+            return;
+        }
+        tvPwdWriteResult.setText("Zapisuji heslo…");
+        tvPwdWriteResult.setTextColor(0xFF5F6A76);
+
+        io.execute(() -> {
+            UhfManager.WriteResult r = uhf.writeAccessPassword(accessPwd, newPwd);
+            ui.post(() -> onPwdWriteDone(r));
+        });
+    }
+
+    private void onPwdWriteDone(UhfManager.WriteResult r) {
+        if (r.success) {
+            tvPwdWriteResult.setTextColor(0xFF2E7D32);
+            tvPwdWriteResult.setText("✓ " + r.message
+                    + (r.oldEpc != null ? ("\nEPC: " + r.oldEpc) : "")
+                    + (r.tid != null ? ("\nTID: " + r.tid) : ""));
+            etLockAccessPwd.setText(etPwdNew.getText().toString().trim().toUpperCase());
+        } else {
+            tvPwdWriteResult.setTextColor(0xFFC62828);
+            tvPwdWriteResult.setText("✗ " + r.message);
+        }
+    }
+
+    // ---------- zamčení tagu ----------
+
+    private void doLock() {
+        if (!uhf.isReady()) {
+            toast("Čtečka není připravena");
+            return;
+        }
+        final String accessPwd = etLockAccessPwd.getText().toString().trim();
+        final String lockCode = getString(R.string.lock_code_value);
+        tvLockResult.setText("Zamykám…");
+        tvLockResult.setTextColor(0xFF5F6A76);
+
+        io.execute(() -> {
+            UhfManager.WriteResult r = uhf.lockTag(accessPwd, lockCode);
+            ui.post(() -> onLockDone(r));
+        });
+    }
+
+    private void onLockDone(UhfManager.WriteResult r) {
+        if (r.success) {
+            tvLockResult.setTextColor(0xFF2E7D32);
+            tvLockResult.setText("✓ " + r.message
+                    + (r.oldEpc != null ? ("\nEPC: " + r.oldEpc) : "")
+                    + (r.tid != null ? ("\nTID: " + r.tid) : ""));
+        } else {
+            tvLockResult.setTextColor(0xFFC62828);
+            tvLockResult.setText("✗ " + r.message);
+        }
+    }
+
     private void saveRowToCsv(String epc24, String tid) {
         try {
             EpcModel.Decoded d = EpcModel.decode(epc24);
@@ -409,7 +528,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** ID_RFID +1; část +1; po překročení castMax zpět na začátek a další výhybka. */
     private void advanceAfterWrite() {
         epc.idRfid += 1;
         prefs.edit().putLong("idRfid", epc.idRfid).apply();
@@ -432,7 +550,7 @@ public class MainActivity extends AppCompatActivity {
         if (currentTudu == null || currentTudu.vyhybky.isEmpty()) return;
         int idx = currentTudu.vyhybky.indexOf(currentVyhybka);
         if (idx >= 0 && idx + 1 < currentTudu.vyhybky.size()) {
-            spVyhybka.setSelection(idx + 1); // vyvolá selectVyhybka(reset=true)
+            spVyhybka.setSelection(idx + 1);
         } else {
             toast("Poslední výhybka v TUDU – cyklus dokončen.");
         }
@@ -479,12 +597,26 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void runTriggerAction() {
+        switch (triggerMode) {
+            case PASSWORD:
+                doWritePassword();
+                break;
+            case LOCK:
+                doLock();
+                break;
+            default:
+                doWrite();
+                break;
+        }
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (event.getRepeatCount() == 0) {
             for (int k : TRIGGER_KEYS) {
                 if (k == keyCode) {
-                    doWrite();
+                    runTriggerAction();
                     return true;
                 }
             }
@@ -521,7 +653,6 @@ public class MainActivity extends AppCompatActivity {
         try { return Long.parseLong(s.replaceAll("[^0-9-]", "")); } catch (Exception e) { return def; }
     }
 
-    /** jednoduchý TextWatcher s callbackem */
     static class SimpleWatcher implements TextWatcher {
         private final Runnable r;
         SimpleWatcher(Runnable r) { this.r = r; }

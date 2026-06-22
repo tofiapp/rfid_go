@@ -1,3 +1,9 @@
 <resources>
-    <string name="app_name">RFID W</string>
+    <string name="app_name">RFID Go</string>
+    <string name="trigger_mode_epc">Zápis EPC</string>
+    <string name="trigger_mode_pwd">Zápis hesla</string>
+    <string name="trigger_mode_lock">Zamknout</string>
+    <string name="btn_write_pwd">ZAPSAT  (lze i tlačítkem čtečky)</string>
+    <string name="btn_lock">ZAMKNOUT  (lze i tlačítkem čtečky)</string>
+    <string name="lock_code_value">008020</string>
 </resources>
