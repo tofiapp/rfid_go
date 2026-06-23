@@ -8,8 +8,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
+import android.graphics.Typeface;
 import android.text.Editable;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.TextWatcher;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -305,7 +310,18 @@ public class MainActivity extends AppCompatActivity {
             int total = currentVyhybka != null
                     ? currentVyhybka.castMax - currentVyhybka.castMin + 1
                     : 3;
-            tvSummaryCast.setText("(" + epc.cast + "/" + total + ")");
+            String current = String.valueOf(epc.cast);
+            String rest = "/" + total;
+            SpannableString span = new SpannableString(current + rest);
+            int accent = ContextCompat.getColor(this, R.color.accent);
+            span.setSpan(new ForegroundColorSpan(accent), 0, current.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            span.setSpan(new StyleSpan(Typeface.BOLD), 0, current.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            int muted = ContextCompat.getColor(this, R.color.text_muted);
+            span.setSpan(new ForegroundColorSpan(muted), current.length(), span.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            tvSummaryCast.setText(span);
         } else {
             tvSummaryCast.setText("—");
         }
@@ -623,6 +639,7 @@ public class MainActivity extends AppCompatActivity {
                 setActionStatus("zapisuji heslo…", COLOR_STATUS_BUSY);
                 doWritePassword();
             } else {
+                onTagCycleComplete();
                 setActionStatusReady();
             }
         } else {
@@ -709,9 +726,8 @@ public class MainActivity extends AppCompatActivity {
             tvLockResult.setText("✓ " + r.message
                     + (r.oldEpc != null ? ("\nEPC: " + r.oldEpc) : "")
                     + (r.tid != null ? ("\nTID: " + r.tid) : ""));
-            advanceAfterWrite();
-            updateSummary1();
             if (chainWorkflow) {
+                onTagCycleComplete();
                 workflowRunning = false;
                 chainWorkflow = false;
                 activeStep = 0;
@@ -755,14 +771,20 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void advanceAfterWrite() {
+    /** Po dokončení zápisu tagu (EPC samostatně, nebo celý řetězec EPC→heslo→lock). */
+    private void onTagCycleComplete() {
         epc.idRfid += 1;
         prefs.edit().putLong("idRfid", epc.idRfid).apply();
+        advanceCastAndVyhybka();
+        refreshTemplate();
+        updateSummary1();
+    }
 
+    private void advanceCastAndVyhybka() {
+        syncCurrentVyhybka();
         if (currentVyhybka != null) {
             int next = epc.cast + 1;
             if (next > currentVyhybka.castMax) {
-                epc.cast = currentVyhybka.castMin;
                 advanceToNextVyhybka();
             } else {
                 epc.cast = next;
@@ -770,16 +792,31 @@ public class MainActivity extends AppCompatActivity {
         } else {
             epc.cast += 1;
         }
-        refreshTemplate();
-        updateSummary1();
+    }
+
+    private void syncCurrentVyhybka() {
+        if (currentVyhybka != null || currentTudu == null || epc.vyhybka <= 0) return;
+        int idx = findVyhybkaIndex(epc.vyhybka);
+        if (idx >= 0) currentVyhybka = currentTudu.vyhybky.get(idx);
+    }
+
+    private int findVyhybkaIndex(int cislo) {
+        if (currentTudu == null) return -1;
+        for (int i = 0; i < currentTudu.vyhybky.size(); i++) {
+            if (currentTudu.vyhybky.get(i).cislo == cislo) return i;
+        }
+        return -1;
     }
 
     private void advanceToNextVyhybka() {
         if (currentTudu == null || currentTudu.vyhybky.isEmpty()) return;
-        int idx = currentTudu.vyhybky.indexOf(currentVyhybka);
+        syncCurrentVyhybka();
+        int idx = currentVyhybka != null
+                ? findVyhybkaIndex(currentVyhybka.cislo)
+                : findVyhybkaIndex(epc.vyhybka);
         if (idx >= 0 && idx + 1 < currentTudu.vyhybky.size()) {
             selectVyhybka(currentTudu.vyhybky.get(idx + 1), true);
-        } else {
+        } else if (idx >= 0) {
             toast("Poslední výhybka v TUDU – cyklus dokončen.");
         }
     }
