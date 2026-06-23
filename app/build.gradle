@@ -34,6 +34,12 @@ android {
         viewBinding false
     }
 
+    applicationVariants.configureEach { variant ->
+        variant.outputs.configureEach {
+            outputFileName = "rfid_go.apk"
+        }
+    }
+
     // POI 3.12 ships duplicate license files
     packagingOptions {
         resources {

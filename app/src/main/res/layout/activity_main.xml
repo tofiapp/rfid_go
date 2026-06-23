@@ -384,7 +384,15 @@
                 android:textStyle="bold"/>
         </LinearLayout>
 
-        <include layout="@layout/bottom_sheet_workflow"/>
+        <FrameLayout
+            android:id="@+id/workflowSheetContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <include layout="@layout/bottom_sheet_workflow"/>
+
+        </FrameLayout>
 
     </LinearLayout>
 
