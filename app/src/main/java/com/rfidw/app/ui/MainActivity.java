@@ -852,6 +852,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void onWriteDone(UhfManager.WriteResult r, String writtenEpc) {
         if (r.success) {
+            if (r.usedPresetPassword) {
+                etAccessPwd.setText(UhfManager.PRESET_ACCESS_PASSWORD);
+            }
             tvWriteResult.setTextColor(0xFF2E7D32);
             tvWriteResult.setText("✓ " + r.message
                     + (r.oldEpc != null ? ("\nPůvodní EPC: " + r.oldEpc) : "")
@@ -904,6 +907,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void onPwdWriteDone(UhfManager.WriteResult r) {
         if (r.success) {
+            if (r.usedPresetPassword) {
+                etPwdAccess.setText(UhfManager.PRESET_ACCESS_PASSWORD);
+            }
             tvPwdWriteResult.setTextColor(0xFF2E7D32);
             tvPwdWriteResult.setText("✓ " + r.message
                     + (r.oldEpc != null ? ("\nEPC: " + r.oldEpc) : "")
