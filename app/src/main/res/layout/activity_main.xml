@@ -280,69 +280,13 @@
                         android:text="Žádný soubor"
                         android:textColor="@color/text_muted"
                         android:textSize="12sp"/>
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:paddingTop="10dp"
-                        android:text="TUDU:"
-                        android:textColor="@color/text"
-                        android:textStyle="bold"/>
-                    <Spinner
-                        android:id="@+id/spTudu"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"/>
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:paddingTop="8dp"
-                        android:text="Výhybka:"
-                        android:textColor="@color/text"
-                        android:textStyle="bold"/>
-                    <Spinner
-                        android:id="@+id/spVyhybka"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"/>
-
-                    <TextView
-                        android:id="@+id/tvVyhybkaInfo"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:paddingTop="6dp"
-                        android:text=""
-                        android:textColor="@color/text_muted"
-                        android:textSize="12sp"/>
                 </LinearLayout>
             </LinearLayout>
-
-            <!-- ============ EPC NÁHLED – vždy viditelný ============ -->
-            <TextView
-                android:id="@+id/tvEpcPreview"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/epc_bg"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:padding="14dp"
-                android:layout_marginBottom="4dp"
-                android:text="----–----–----–----–----–----"
-                android:textColor="#7FE0FF"
-                android:textSize="18sp"
-                android:textStyle="bold"/>
-            <TextView
-                android:id="@+id/tvEpcValid"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:paddingBottom="10dp"
-                android:text=""
-                android:textSize="12sp"/>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Vyjížděcí panel: karty 2–5 -->
+    <!-- Vyjížděcí panel: pokročilé (EPC náhled, karty 2–5) -->
     <LinearLayout
         android:id="@+id/workflowSheet"
         android:layout_width="match_parent"
@@ -376,10 +320,19 @@
                 android:id="@+id/tvWorkflowSheetTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="2–5: EPC, CSV, Heslo, Lock"
+                android:text="@string/workflow_sheet_title"
                 android:textColor="@color/primary_dark"
-                android:textSize="13sp"
+                android:textSize="14sp"
                 android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/tvWorkflowSheetSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="2dp"
+                android:text="@string/workflow_sheet_subtitle"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp"/>
         </LinearLayout>
 
         <include layout="@layout/bottom_sheet_workflow"/>
