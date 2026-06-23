@@ -1,18 +1,28 @@
 # RFID Go
 
-Android aplikace pro čtečku **Chainway C5** (vestavěný UHF UART modul, RSCJA/Chainway SDK).
+Android aplikace (verze **2.0**) pro čtečku **Chainway C5** (vestavěný UHF UART modul, RSCJA/Chainway SDK).
 Slouží k **přepisu EPC** UHF tagů podle definované šablony, **zaheslování** a **zamčení** tagů a k **zápisu údajů o tagu do tabulky CSV**.
 
 ---
 
 ## Co aplikace umí
 
-Aplikace má pět rozbalovacích karet (náhled celého EPC je vidět pořád). Akční tlačítka zápisu a zamčení zůstávají vždy viditelná i při sbalené kartě.
+Hlavní obrazovka vede operátora třemi kroky (**TUDU → Načtení → Hotovo**). Výběr TUDU a výhybky je vždy nahoře; pokročilé funkce (EPC šablona, CSV, heslo, zamčení) jsou ve vyjížděcím panelu **Pokročilé**.
+
+### Průběh práce (3 kroky)
+
+| Krok | Název | Popis |
+|------|-------|-------|
+| 1 | TUDU | Vybrán zdrojový soubor, TUDU a výhybka |
+| 2 | Načtení | Probíhá zápis EPC, hesla a zamčení tagu |
+| 3 | Hotovo | Tag úspěšně zpracován – potvrzení nebo opakování |
 
 ### 1. Zdroj dat – výběr TUDU
 - Načte úseky **TUDU** ze souboru `.CSV` nebo `.SQL`.
-- Po výběru TUDU se zobrazí seznam **výhybek** v tomto TUDU.
-- Postupuje se výhybku po výhybce.
+- Po načtení souboru se automaticky otevře dialog s **vyhledáváním TUDU**.
+- TUDU a výhybku lze kdykoli změnit klepnutím na náhledový panel (TUDU / Výhybka).
+- Výběr výhybky zohledňuje **již zapsané části v CSV** – dokončené výhybky jsou v seznamu zašedlé a nevybíratelné.
+- Při výběru výhybky se automaticky nastaví **první chybějící část** podle CSV.
 
 Formát vstupního souboru (oddělovač `;` nebo `,`, hlavička volitelná):
 
@@ -25,6 +35,11 @@ TUDU;VYHYBKA;CAST_MIN;CAST_MAX
 
 Stačí i jen `TUDU;VYHYBKA` – části se doplní na `1–3`.
 Vzorové soubory jsou ve složce [`sample_data/`](sample_data).
+
+**Nápověda k části výhybky** – u výhybek se třemi částmi (1–3) se pod výběrem zobrazí textová nápověda:
+- část 1 → *jazyk*
+- část 2 → *levé rameno*
+- část 3 → *pravé rameno*
 
 ### 2. Šablona EPC a zápis
 EPC = **24 hex znaků** (bank EPC, ptr 2, Len 6). Skládá se podle 7 řádků šablony:
@@ -43,14 +58,17 @@ Příklad: `1501J1`, výhybka `10`, část `1`, ID `30001` →
 `2026 1501 4A 01 010 1 00030001` = `202615014A01010100030001`.
 
 - **Názvy kategorií** i hodnoty Rok / Část / ID_RFID lze ručně přepsat.
-- Pod tím je rozhraní zápisu: `bank EPC`, `ptr 2`, `Len 6`, **Access pwd** (default `00000000`) a výkon v dBm.
-- Tlačítko **ZAPSAT** přepíše EPC tagu v dosahu. Funguje i fyzickým **tlačítkem (spouští) čtečky**.
-- Po úspěšném zápisu se automaticky:
-  - `ID_RFID += 1`,
-  - posune **část výhybky** o 1; po překročení maxima se vrátí na začátek a přepne na **další výhybku** v pořadí daného TUDU.
+- Náhled EPC a validace (24 hex znaků) jsou v panelu **Pokročilé**.
+- Pod šablonou je rozhraní zápisu: `bank EPC`, `ptr 2`, `Len 6`, **Access pwd** (default `00000000`) a výkon v dBm.
+- Tlačítko **ZAPSAT EPC** přepíše EPC tagu v dosahu.
+- Po úspěšném zápisu se zobrazí původní EPC a TID tagu.
+- Při selhání zápisu s uživatelským heslem se automaticky zkusí **preset heslo** `11223344`.
+- Po dokončení celého cyklu (viz níže) se automaticky:
+  - `ID_RFID += 1` (hodnota se ukládá do aplikace),
+  - posune **část výhybky** o 1; po překročení maxima se přepne na **další nedokončenou výhybku** v pořadí daného TUDU.
 
 ### 3. Tabulka CSV
-Po každém zápisu EPC (lze vypnout) se uloží řádek do `rfid_go_output.csv`:
+Po každém zápisu EPC (lze vypnout zaškrtávátkem) se uloží řádek do `rfid_go_output.csv`:
 
 | Sloupec | Zdroj |
 |---------|-------|
@@ -59,11 +77,12 @@ Po každém zápisu EPC (lze vypnout) se uloží řádek do `rfid_go_output.csv`
 | TID | přečtený z tagu |
 | Rok | řádek 1 |
 | TUDU | řádek 2 + dekódovaný 3 (`4A`→`J`) + dekódovaný 4 (`01`→`1`) |
-| Výhybka | řádek 5 (`010` → `10`) |
-| Část | řádek 6 |
+| Vyhybka | řádek 5 (`010` → `10`) |
+| CastVyhybky | řádek 6 |
 
 Při zápisu stejného `ID_RFID` se daný řádek **přepíše**.
-Tabulku lze sdílet/exportovat tlačítkem **Sdílet / Export** nebo vymazat.
+Tabulku lze sdílet tlačítkem **Sdílet / Export** nebo **vymazat poslední záznam** (obnoví se předchozí stav šablony).
+Nad spodním panelem se zobrazuje náhled **posledního záznamu** (výhybka a část).
 
 Soubor je uložen v `Android/data/com.rfidw.app/files/rfid_go_output.csv`.
 
@@ -71,20 +90,26 @@ Soubor je uložen v `Android/data/com.rfidw.app/files/rfid_go_output.csv`.
 - **bank RESERVED**, `ptr 2`, `len 2` (access password, 8 hex znaků)
 - Pole **ACCESS PWD** – aktuální heslo tagu (default `00000000`)
 - Pole **NEW PWD** – nové heslo (8 hex znaků)
-- Tlačítko **ZAPSAT** (vždy viditelné) zapíše nové access heslo na tag v dosahu
+- Tlačítko **ZAPSAT HESLO** zapíše nové access heslo na tag v dosahu
+- Stejný fallback na preset heslo `11223344` jako u zápisu EPC
 
 ### 5. Zamčení tagu
 - Pole **NEW ACCESS PWD** – heslo pro zamčení (po zápisu hesla se doplní automaticky)
 - **Lock code** – pevná hodnota `008020`
-- Tlačítko **ZAMKNOUT** (vždy viditelné) zamkne tag v dosahu
+- Tlačítko **ZAMKNOUT** zamkne tag v dosahu
 
 ### Spouště čtečky
-Nahoře lze vybrat, kterou akci provede fyzické tlačítko čtečky:
-- **Zápis EPC** (výchozí)
-- **Zápis hesla**
-- **Zamknout**
+Fyzické tlačítko (spouště) čtečky spouští **celý řetězec** v jednom kroku:
 
-Výběr se uloží a při stisku akčního tlačítka na obrazovce se automaticky přepne.
+1. zápis EPC → 2. zápis access hesla → 3. zamčení tagu
+
+Po úspěšném dokončení se zobrazí přehled **Načetli jste** (výhybka + část) s volbami:
+- **Pokračovat** – posune část/výhybku a připraví další tag (stejně jako po ručním dokončení cyklu),
+- **Opakovat** – zůstane na stejné části pro nový pokus.
+
+Během zobrazení tohoto dialogu lze **Pokračovat** potvrdit i fyzickým tlačítkem čtečky.
+
+Jednotlivé akce (jen EPC, jen heslo, jen zamčení) lze spustit i ručně tlačítky v panelu **Pokročilé**.
 
 ---
 
@@ -96,14 +121,20 @@ Projekt je standardní Android (Gradle). Otevřete v **Android Studiu** nebo př
 ./gradlew assembleDebug
 ```
 
-APK: `app/build/outputs/apk/debug/app-debug.apk`
+APK: `app/build/outputs/apk/debug/rfid_go.apk`
 
-- `compileSdk 34`, `minSdk 21`, `targetSdk 34`, Java 17, Material 3.
+- `compileSdk 34`, `minSdk 21`, `targetSdk 34`, Java 17, Material 3
+- Android Gradle Plugin **8.5.2**, Gradle **8.7**
 - Knihovny čtečky a Excelu jsou v `app/libs/`:
   - `DeviceAPI_ver20251103_release.aar` – Chainway/RSCJA UHF SDK (obsahuje i nativní `.so`),
   - `poi-*`, `jxl.jar`, `xUtils-*` – ponechány pro budoucí export do XLSX.
 
 > Pozn.: Při prvním otevření Android Studio vygeneruje `local.properties` s cestou k SDK.
+
+### CI (GitHub Actions)
+
+Při pushi nebo PR na `main` se automaticky sestaví debug APK (workflow [`.github/workflows/android.yml`](.github/workflows/android.yml)).
+Výsledné APK je k dispozici jako artefakt **rfid-go-debug-apk**.
 
 ---
 
@@ -116,10 +147,18 @@ app/src/main/java/com/rfidw/app/
 ├─ data/TuduLoader.java    – načítání z .csv / .sql
 ├─ csv/CsvStore.java       – výstupní CSV s přepisem podle ID_RFID
 ├─ rfid/UhfManager.java    – obal nad RFIDWithUHFUART (EPC, heslo, zamčení)
-└─ ui/MainActivity.java    – obrazovka a propojení všeho
+└─ ui/
+   ├─ MainActivity.java    – obrazovka, workflow a propojení všeho
+   └─ CsvAdapter.java      – zobrazení tabulky CSV v RecyclerView
+
+app/src/main/res/layout/
+├─ activity_main.xml           – hlavní obrazovka (krok 1, indikátor, spodní panel)
+├─ bottom_sheet_workflow.xml   – panel Pokročilé (EPC, karty 2–5)
+├─ dialog_tudu_picker.xml      – dialog výběru TUDU s vyhledáváním
+└─ row_*.xml                   – řádky šablony EPC a CSV
 ```
 
 ## Možné další kroky
 - Export do `.xlsx` (knihovny POI/jxl jsou už přibalené).
 - Nastavení (uložení access pwd, výchozí rok, výkon).
-- Kontrolní zpětné přečtení EPC po zápisu.
+- Hromadné vymazání celé CSV tabulky.
