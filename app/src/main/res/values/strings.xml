@@ -9,8 +9,8 @@
     <string name="workflow_sheet_subtitle">EPC, CSV, Heslo, Lock</string>
     <string name="epc_preview_label">EPC náhled</string>
     <string name="tudu_search_hint">Hledat TUDU…</string>
-    <string name="cast_hint_prefix">Načtěte </string>
-    <string name="cast_hint_suffix"> část výhybky</string>
+    <string name="cast_hint_prefix">Načtěte\u00A0</string>
+    <string name="cast_hint_mid">\u00A0část výhybky\u00A0</string>
     <string name="cast_part_1">jazyk</string>
     <string name="cast_part_2">levé rameno</string>
     <string name="cast_part_3">pravé rameno</string>

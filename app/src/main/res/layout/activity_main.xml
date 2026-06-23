@@ -283,13 +283,13 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Nápověda k části výhybky – mimo kartu 1, světlý obdélník jako TUDU -->
+            <!-- Nápověda k části výhybky – mimo kartu 1, bílý obdélník jako karta 1 -->
             <LinearLayout
                 android:id="@+id/castHintBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
-                android:background="@drawable/summary_bg"
+                android:background="@drawable/card_bg"
                 android:gravity="center_horizontal"
                 android:orientation="vertical"
                 android:padding="14dp"

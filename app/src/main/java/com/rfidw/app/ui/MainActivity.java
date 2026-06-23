@@ -385,16 +385,26 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         String prefix = getString(R.string.cast_hint_prefix);
-        String suffix = getString(R.string.cast_hint_suffix);
-        String num = String.valueOf(epc.cast);
-        SpannableString span = new SpannableString(prefix + num + suffix);
+        String mid = getString(R.string.cast_hint_mid);
+        String castStr = String.valueOf(epc.cast);
+        String vyhybkaStr = String.valueOf(epc.vyhybka);
+        SpannableString span = new SpannableString(prefix + castStr + mid + vyhybkaStr);
         int accent = ContextCompat.getColor(this, R.color.accent);
-        int numStart = prefix.length();
-        int numEnd = numStart + num.length();
-        span.setSpan(new ForegroundColorSpan(accent), numStart, numEnd,
+
+        int castStart = prefix.length();
+        int castEnd = castStart + castStr.length();
+        span.setSpan(new ForegroundColorSpan(accent), castStart, castEnd,
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        span.setSpan(new StyleSpan(Typeface.BOLD), numStart, numEnd,
+        span.setSpan(new StyleSpan(Typeface.BOLD), castStart, castEnd,
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        int vyhStart = castEnd + mid.length();
+        int vyhEnd = vyhStart + vyhybkaStr.length();
+        span.setSpan(new ForegroundColorSpan(accent), vyhStart, vyhEnd,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        span.setSpan(new StyleSpan(Typeface.BOLD), vyhStart, vyhEnd,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
         tvCastHintAction.setText(span);
         tvCastHintPart.setText(partName);
         castHintBox.setVisibility(View.VISIBLE);
