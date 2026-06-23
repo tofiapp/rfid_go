@@ -7,9 +7,14 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.graphics.Typeface;
 import android.provider.OpenableColumns;
 import android.text.Editable;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.TextWatcher;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -75,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
     // view reference
     private TextView tvReaderStatus, tvEpcPreview, tvEpcValid, tvSourceFile,
             tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult,
-            tvSummaryTudu, tvSummaryVyhybka,
+            tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
             step1Circle, step2Circle, step3Circle;
     private View summary1, colSummaryTudu, colSummaryVyhybka;
     private BottomSheetBehavior<View> workflowBehavior;
@@ -117,6 +122,7 @@ public class MainActivity extends AppCompatActivity {
         tvLockResult = findViewById(R.id.tvLockResult);
         tvSummaryTudu = findViewById(R.id.tvSummaryTudu);
         tvSummaryVyhybka = findViewById(R.id.tvSummaryVyhybka);
+        tvSummaryCast = findViewById(R.id.tvSummaryCast);
         summary1 = findViewById(R.id.summary1);
         colSummaryTudu = findViewById(R.id.colSummaryTudu);
         colSummaryVyhybka = findViewById(R.id.colSummaryVyhybka);
@@ -341,6 +347,25 @@ public class MainActivity extends AppCompatActivity {
     private void updateSummary1() {
         tvSummaryTudu.setText(epc.tudu == null || epc.tudu.isEmpty() ? "—" : epc.tudu);
         tvSummaryVyhybka.setText(epc.vyhybka > 0 ? String.valueOf(epc.vyhybka) : "—");
+        if (epc.cast > 0) {
+            int total = currentVyhybka != null
+                    ? currentVyhybka.castMax - currentVyhybka.castMin + 1
+                    : 3;
+            String current = String.valueOf(epc.cast);
+            String rest = "/" + total;
+            SpannableString span = new SpannableString(current + rest);
+            int accent = ContextCompat.getColor(this, R.color.accent);
+            span.setSpan(new ForegroundColorSpan(accent), 0, current.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            span.setSpan(new StyleSpan(Typeface.BOLD), 0, current.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            int muted = ContextCompat.getColor(this, R.color.text_muted);
+            span.setSpan(new ForegroundColorSpan(muted), current.length(), span.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            tvSummaryCast.setText(span);
+        } else {
+            tvSummaryCast.setText("—");
+        }
     }
 
     private void resetTagWorkflow() {
