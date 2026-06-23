@@ -36,7 +36,7 @@
                     android:id="@+id/tvReaderStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Čtečka: …"
+                    android:text="…"
                     android:textColor="@color/text_muted"
                     android:textSize="13sp"/>
             </LinearLayout>
@@ -101,7 +101,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:paddingTop="4dp"
-                        android:text="EPC"
+                        android:text="Načtení"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp"/>
                 </LinearLayout>
@@ -132,38 +132,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:paddingTop="4dp"
-                        android:text="Heslo"
-                        android:textColor="@color/text_muted"
-                        android:textSize="11sp"/>
-                </LinearLayout>
-
-                <View
-                    android:layout_width="16dp"
-                    android:layout_height="2dp"
-                    android:layout_gravity="center_vertical"
-                    android:background="#D0D5DC"/>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
-                    <TextView
-                        android:id="@+id/step4Circle"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:background="@drawable/step_circle_pending"
-                        android:gravity="center"
-                        android:text="4"
-                        android:textColor="@color/text_muted"
-                        android:textSize="14sp"
-                        android:textStyle="bold"/>
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingTop="4dp"
-                        android:text="Lock"
+                        android:text="Hotovo"
                         android:textColor="@color/text_muted"
                         android:textSize="11sp"/>
                 </LinearLayout>
