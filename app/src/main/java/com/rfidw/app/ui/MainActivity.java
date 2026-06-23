@@ -31,6 +31,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -86,8 +87,11 @@ public class MainActivity extends AppCompatActivity {
             tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
             tvCastHintAction, tvCastHintPart,
             tvScanDoneVyhybka, tvScanDoneCast,
+            tvLastRecordVyhybka, tvLastRecordCast,
             step1Circle, step2Circle, step3Circle, step3Label;
-    private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneOverlay;
+    private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneOverlay,
+            lastRecordBox, card1;
+    private NestedScrollView mainScroll;
     private BottomSheetBehavior<View> workflowBehavior;
     private AnimatorSet step3GlowAnimator;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
@@ -113,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
         refreshTemplate();
         updateSummary1();
         updateStepIndicators();
+        updateLastRecordPreview();
 
         initReaderAsync();
     }
@@ -142,6 +147,11 @@ public class MainActivity extends AppCompatActivity {
         scanDoneOverlay = findViewById(R.id.scanDoneOverlay);
         tvScanDoneVyhybka = findViewById(R.id.tvScanDoneVyhybka);
         tvScanDoneCast = findViewById(R.id.tvScanDoneCast);
+        lastRecordBox = findViewById(R.id.lastRecordBox);
+        tvLastRecordVyhybka = findViewById(R.id.tvLastRecordVyhybka);
+        tvLastRecordCast = findViewById(R.id.tvLastRecordCast);
+        mainScroll = findViewById(R.id.mainScroll);
+        card1 = findViewById(R.id.card1);
         etAccessPwd = findViewById(R.id.etAccessPwd);
         etPower = findViewById(R.id.etPower);
         etPwdAccess = findViewById(R.id.etPwdAccess);
@@ -184,6 +194,19 @@ public class MainActivity extends AppCompatActivity {
         body.setVisibility(View.VISIBLE);
         String t = header.getText().toString();
         if (t.startsWith("▸")) header.setText("▾" + t.substring(1));
+    }
+
+    private void collapseCard1Body() {
+        View body = findViewById(R.id.body1);
+        TextView header = findViewById(R.id.header1);
+        body.setVisibility(View.GONE);
+        String t = header.getText().toString();
+        if (t.startsWith("▾")) header.setText("▸" + t.substring(1));
+    }
+
+    private void scrollToCard1() {
+        if (mainScroll == null || card1 == null) return;
+        mainScroll.post(() -> mainScroll.smoothScrollTo(0, card1.getTop()));
     }
 
     private void showTuduPicker() {
@@ -385,6 +408,56 @@ public class MainActivity extends AppCompatActivity {
             tvSummaryCast.setText("—");
         }
         updateCastHint();
+    }
+
+    private void updateLastRecordPreview() {
+        CsvStore.Row last = csvStore != null ? csvStore.getLastRow() : null;
+        if (last == null) {
+            lastRecordBox.setVisibility(View.GONE);
+            return;
+        }
+
+        int vyhybka = parseInt(last.vyhybka, 0);
+        int cast = parseInt(last.cast, 0);
+        if (vyhybka <= 0 || cast <= 0) {
+            lastRecordBox.setVisibility(View.GONE);
+            return;
+        }
+
+        String vyhPrefix = getString(R.string.last_record_vyhybka_prefix);
+        String castPrefix = getString(R.string.last_record_cast_prefix);
+        String vyhStr = String.valueOf(vyhybka);
+        int total = castTotalForRow(last);
+        String current = String.valueOf(cast);
+        String rest = "/" + total;
+
+        SpannableString vyhSpan = new SpannableString(vyhPrefix + vyhStr);
+        applyVyhybkaAccent(vyhSpan, vyhPrefix.length(), vyhSpan.length());
+        tvLastRecordVyhybka.setText(vyhSpan);
+
+        SpannableString castSpan = new SpannableString(castPrefix + current + rest);
+        int castValueStart = castPrefix.length();
+        int castValueEnd = castValueStart + current.length();
+        applyCastAccent(castSpan, castValueStart, castValueEnd);
+        int muted = ContextCompat.getColor(this, R.color.text_muted);
+        castSpan.setSpan(new ForegroundColorSpan(muted), castValueEnd, castSpan.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        tvLastRecordCast.setText(castSpan);
+
+        lastRecordBox.setVisibility(View.VISIBLE);
+    }
+
+    private int castTotalForRow(CsvStore.Row row) {
+        if (row == null) return 3;
+        for (Tudu t : tuduList) {
+            if (!t.code.equals(row.tudu)) continue;
+            for (Tudu.Vyhybka v : t.vyhybky) {
+                if (v.cislo == parseInt(row.vyhybka, -1)) {
+                    return v.castMax - v.castMin + 1;
+                }
+            }
+        }
+        return 3;
     }
 
     private void updateCastHint() {
@@ -679,6 +752,7 @@ public class MainActivity extends AppCompatActivity {
         rv.setLayoutManager(new LinearLayoutManager(this));
         rv.setAdapter(csvAdapter);
         csvAdapter.setData(csvStore.getRows());
+        updateLastRecordPreview();
     }
 
     // ---------- listenery ----------
@@ -725,6 +799,9 @@ public class MainActivity extends AppCompatActivity {
                 ui.post(() -> {
                     tuduList = loaded;
                     tvSourceFile.setText(name + "  •  TUDU: " + loaded.size());
+                    collapseCard1Body();
+                    scrollToCard1();
+                    updateLastRecordPreview();
                     onTuduListLoaded();
                 });
             } catch (Exception e) {
@@ -811,6 +888,7 @@ public class MainActivity extends AppCompatActivity {
         }
         csvAdapter.setData(csvStore.getRows());
         restoreSelectionFromRow(last);
+        updateLastRecordPreview();
         toast("Poslední záznam vymazán");
     }
 
@@ -995,6 +1073,7 @@ public class MainActivity extends AppCompatActivity {
             row.cast = d.cast;
             csvStore.upsert(row);
             csvAdapter.setData(csvStore.getRows());
+            updateLastRecordPreview();
         } catch (Exception e) {
             toast("CSV: " + e.getMessage());
         }

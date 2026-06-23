@@ -19,4 +19,7 @@
     <string name="scan_done_cast_prefix">část\u00A0</string>
     <string name="scan_done_continue">Pokračovat</string>
     <string name="scan_done_retry">Znovu</string>
+    <string name="last_record_label">poslední záznam</string>
+    <string name="last_record_vyhybka_prefix">výhybka\u00A0</string>
+    <string name="last_record_cast_prefix">část\u00A0</string>
 </resources>

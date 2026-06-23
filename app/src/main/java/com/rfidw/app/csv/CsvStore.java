@@ -58,6 +58,13 @@ public class CsvStore {
 
     public int size() { return rows.size(); }
 
+    /** Vrátí poslední vložený řádek nebo null, pokud je tabulka prázdná. */
+    public Row getLastRow() {
+        if (rows.isEmpty()) return null;
+        List<Row> list = getRows();
+        return list.get(list.size() - 1);
+    }
+
     /** Vloží nebo přepíše řádek podle ID_RFID a uloží na disk. */
     public synchronized void upsert(Row row) {
         rows.put(row.idRfid, row);
