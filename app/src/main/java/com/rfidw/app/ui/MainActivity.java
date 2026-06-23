@@ -20,11 +20,14 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 
 import com.rfidw.app.R;
 import com.rfidw.app.csv.CsvStore;
@@ -72,7 +75,8 @@ public class MainActivity extends AppCompatActivity {
             tvVyhybkaInfo, tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult,
             tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
             step1Circle, step2Circle, step3Circle, step4Circle;
-    private View summary1;
+    private View summary1, colSummaryTudu, colSummaryVyhybka;
+    private BottomSheetBehavior<View> workflowBehavior;
     private Spinner spTudu, spVyhybka;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
@@ -87,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
         prefs = getSharedPreferences("rfidgo", MODE_PRIVATE);
 
         bindViews();
+        setupWorkflowSheet();
         setupCollapsibles();
         setupTemplateRows();
         setupCsv();
@@ -114,6 +119,8 @@ public class MainActivity extends AppCompatActivity {
         tvSummaryVyhybka = findViewById(R.id.tvSummaryVyhybka);
         tvSummaryCast = findViewById(R.id.tvSummaryCast);
         summary1 = findViewById(R.id.summary1);
+        colSummaryTudu = findViewById(R.id.colSummaryTudu);
+        colSummaryVyhybka = findViewById(R.id.colSummaryVyhybka);
         step1Circle = findViewById(R.id.step1Circle);
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
@@ -136,10 +143,87 @@ public class MainActivity extends AppCompatActivity {
         rows[6] = findViewById(R.id.row7);
     }
 
-    // ---------- rozbalovací karty ----------
+    // ---------- rozbalovací karty a spodní panel ----------
+
+    private void setupWorkflowSheet() {
+        View sheet = findViewById(R.id.workflowSheet);
+        workflowBehavior = BottomSheetBehavior.from(sheet);
+        workflowBehavior.setHideable(false);
+        workflowBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+
+        findViewById(R.id.workflowSheetHandle).setOnClickListener(v -> {
+            if (workflowBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
+                workflowBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+            } else {
+                workflowBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            }
+        });
+
+        colSummaryTudu.setOnClickListener(v -> showTuduPicker());
+        colSummaryVyhybka.setOnClickListener(v -> showVyhybkaPicker());
+    }
+
+    private void expandCard1Body() {
+        View body = findViewById(R.id.body1);
+        TextView header = findViewById(R.id.header1);
+        body.setVisibility(View.VISIBLE);
+        String t = header.getText().toString();
+        if (t.startsWith("▸")) header.setText("▾" + t.substring(1));
+    }
+
+    private void showTuduPicker() {
+        if (tuduList.isEmpty()) {
+            toast("Nejdříve vyberte soubor se zdrojem dat");
+            expandCard1Body();
+            return;
+        }
+        String[] items = new String[tuduList.size()];
+        for (int i = 0; i < tuduList.size(); i++) items[i] = tuduList.get(i).code;
+        int checked = 0;
+        if (currentTudu != null) {
+            for (int i = 0; i < tuduList.size(); i++) {
+                if (tuduList.get(i).code.equals(currentTudu.code)) {
+                    checked = i;
+                    break;
+                }
+            }
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Vyberte TUDU")
+                .setSingleChoiceItems(items, checked, (d, which) -> {
+                    selectTudu(tuduList.get(which));
+                    d.dismiss();
+                })
+                .setNegativeButton("Zrušit", null)
+                .show();
+    }
+
+    private void showVyhybkaPicker() {
+        if (currentTudu == null || currentTudu.vyhybky.isEmpty()) {
+            toast("TUDU nemá výhybky – vyberte soubor nebo TUDU");
+            expandCard1Body();
+            return;
+        }
+        String[] items = new String[currentTudu.vyhybky.size()];
+        for (int i = 0; i < currentTudu.vyhybky.size(); i++) {
+            Tudu.Vyhybka v = currentTudu.vyhybky.get(i);
+            items[i] = "Výhybka " + v.cislo;
+        }
+        int checked = currentVyhybka != null
+                ? currentTudu.vyhybky.indexOf(currentVyhybka) : 0;
+        if (checked < 0) checked = 0;
+        new AlertDialog.Builder(this)
+                .setTitle("Vyberte výhybku")
+                .setSingleChoiceItems(items, checked, (d, which) -> {
+                    selectVyhybka(currentTudu.vyhybky.get(which), true);
+                    d.dismiss();
+                })
+                .setNegativeButton("Zrušit", null)
+                .show();
+    }
 
     private void setupCollapsibles() {
-        toggle(R.id.header1, R.id.body1, R.id.summary1);
+        toggle(R.id.header1, R.id.body1, 0);
         toggle(R.id.header2, R.id.body2, 0);
         toggle(R.id.header3, R.id.body3, 0);
         toggle(R.id.header4, R.id.body4, 0);
@@ -191,7 +275,14 @@ public class MainActivity extends AppCompatActivity {
     private void updateSummary1() {
         tvSummaryTudu.setText(epc.tudu == null || epc.tudu.isEmpty() ? "—" : epc.tudu);
         tvSummaryVyhybka.setText(epc.vyhybka > 0 ? String.valueOf(epc.vyhybka) : "—");
-        tvSummaryCast.setText(epc.cast > 0 ? String.valueOf(epc.cast) : "—");
+        if (epc.cast > 0) {
+            int total = currentVyhybka != null
+                    ? currentVyhybka.castMax - currentVyhybka.castMin + 1
+                    : 3;
+            tvSummaryCast.setText("(" + epc.cast + "/" + total + ")");
+        } else {
+            tvSummaryCast.setText("—");
+        }
     }
 
     private void resetTagWorkflow() {
@@ -392,6 +483,12 @@ public class MainActivity extends AppCompatActivity {
     private void selectTudu(Tudu t) {
         currentTudu = t;
         epc.tudu = t.code;
+        int tuduPos = tuduList.indexOf(t);
+        if (tuduPos >= 0) {
+            suppressSpinnerCallbacks = true;
+            spTudu.setSelection(tuduPos);
+            suppressSpinnerCallbacks = false;
+        }
         List<String> labels = new ArrayList<>();
         for (Tudu.Vyhybka v : t.vyhybky) labels.add("Výhybka " + v.cislo);
         ArrayAdapter<String> a = new ArrayAdapter<>(this,
@@ -412,6 +509,14 @@ public class MainActivity extends AppCompatActivity {
         currentVyhybka = v;
         epc.vyhybka = v.cislo;
         if (resetCast) epc.cast = v.castMin;
+        if (currentTudu != null) {
+            int pos = currentTudu.vyhybky.indexOf(v);
+            if (pos >= 0) {
+                suppressSpinnerCallbacks = true;
+                spVyhybka.setSelection(pos);
+                suppressSpinnerCallbacks = false;
+            }
+        }
         tvVyhybkaInfo.setText("Výhybka " + v.cislo + " • části " + v.castMin + "–" + v.castMax
                 + "  (TUDU " + (currentTudu != null ? currentTudu.code : "-") + ")");
         refreshTemplate();
