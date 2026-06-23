@@ -7,6 +7,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.graphics.Typeface;
 import android.provider.OpenableColumns;
 import android.text.Editable;
@@ -83,9 +86,10 @@ public class MainActivity extends AppCompatActivity {
             tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
             tvCastHintAction, tvCastHintPart,
             tvScanDoneVyhybka, tvScanDoneCast,
-            step1Circle, step2Circle, step3Circle;
+            step1Circle, step2Circle, step3Circle, step3Label;
     private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneOverlay;
     private BottomSheetBehavior<View> workflowBehavior;
+    private AnimatorSet step3GlowAnimator;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
 
@@ -134,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
         step1Circle = findViewById(R.id.step1Circle);
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
+        step3Label = findViewById(R.id.step3Label);
         scanDoneOverlay = findViewById(R.id.scanDoneOverlay);
         tvScanDoneVyhybka = findViewById(R.id.tvScanDoneVyhybka);
         tvScanDoneCast = findViewById(R.id.tvScanDoneCast);
@@ -327,7 +332,9 @@ public class MainActivity extends AppCompatActivity {
     private void updateStepIndicators() {
         setStepCircle(step1Circle, step1Done, activeStep == 1, "1");
         setStepCircle(step2Circle, step2Done, activeStep == 2, "2");
-        setStepCircle(step3Circle, step3Done, activeStep == 3, "3");
+        if (!scanDoneAwaitingConfirm) {
+            setStepCircle(step3Circle, step3Done, activeStep == 3, "3");
+        }
     }
 
     private void setStepCircle(TextView circle, boolean done, boolean active, String number) {
@@ -440,39 +447,88 @@ public class MainActivity extends AppCompatActivity {
         applyCastAccent(castSpan, castPrefix.length(), castSpan.length());
         tvScanDoneCast.setText(castSpan);
 
+        step3Done = true;
+        updateStepIndicators();
+        startStep3Glow();
+
         scanDoneOverlay.setAlpha(0f);
         scanDoneOverlay.setVisibility(View.VISIBLE);
         scanDoneOverlay.animate().alpha(1f).setDuration(200).start();
     }
 
+    private void startStep3Glow() {
+        stopStep3Glow();
+        step3Circle.setBackgroundResource(R.drawable.step_circle_done_glow);
+        step3Circle.setText("✓");
+        step3Circle.setTextColor(0xFFFFFFFF);
+
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(step3Circle, View.SCALE_X, 1f, 1.12f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(step3Circle, View.SCALE_Y, 1f, 1.12f);
+        scaleX.setRepeatMode(ValueAnimator.REVERSE);
+        scaleY.setRepeatMode(ValueAnimator.REVERSE);
+        scaleX.setRepeatCount(ValueAnimator.INFINITE);
+        scaleY.setRepeatCount(ValueAnimator.INFINITE);
+        scaleX.setDuration(900);
+        scaleY.setDuration(900);
+
+        step3GlowAnimator = new AnimatorSet();
+        step3GlowAnimator.playTogether(scaleX, scaleY);
+        step3GlowAnimator.start();
+
+        step3Label.setTextColor(ContextCompat.getColor(this, R.color.ok));
+        step3Label.setTypeface(null, Typeface.BOLD);
+    }
+
+    private void stopStep3Glow() {
+        if (step3GlowAnimator != null) {
+            step3GlowAnimator.cancel();
+            step3GlowAnimator = null;
+        }
+        step3Circle.setScaleX(1f);
+        step3Circle.setScaleY(1f);
+        step3Label.setTextColor(ContextCompat.getColor(this, R.color.text_muted));
+        step3Label.setTypeface(null, Typeface.NORMAL);
+    }
+
     private void onScanDoneContinue() {
         if (!scanDoneAwaitingConfirm) return;
         scanDoneAwaitingConfirm = false;
-        hideScanDoneNotification();
-        onTagCycleComplete();
-        step2Done = false;
-        step3Done = false;
-        updateStepIndicators();
-        setActionStatusReady();
+        hideScanDoneNotification(() -> {
+            onTagCycleComplete();
+            step2Done = false;
+            step3Done = false;
+            updateStepIndicators();
+            setActionStatusReady();
+        });
     }
 
     private void onScanDoneRetry() {
         if (!scanDoneAwaitingConfirm) return;
         scanDoneAwaitingConfirm = false;
-        hideScanDoneNotification();
-        step2Done = false;
-        step3Done = false;
-        updateStepIndicators();
-        refreshTemplate();
-        updateSummary1();
-        setActionStatusReady();
+        hideScanDoneNotification(() -> {
+            step2Done = false;
+            step3Done = false;
+            updateStepIndicators();
+            refreshTemplate();
+            updateSummary1();
+            setActionStatusReady();
+        });
     }
 
     private void hideScanDoneNotification() {
-        if (scanDoneOverlay.getVisibility() != View.VISIBLE) return;
+        hideScanDoneNotification(null);
+    }
+
+    private void hideScanDoneNotification(Runnable onHidden) {
+        if (scanDoneOverlay.getVisibility() != View.VISIBLE) {
+            if (onHidden != null) onHidden.run();
+            return;
+        }
         scanDoneOverlay.animate().alpha(0f).setDuration(150).withEndAction(() -> {
+            stopStep3Glow();
             scanDoneOverlay.setVisibility(View.GONE);
             scanDoneOverlay.setAlpha(1f);
+            if (onHidden != null) onHidden.run();
         }).start();
     }
 
@@ -901,16 +957,14 @@ public class MainActivity extends AppCompatActivity {
                 chainWorkflow = false;
                 activeStep = 0;
                 step2Done = true;
-                step3Done = false;
-                updateStepIndicators();
                 scanDoneAwaitingConfirm = true;
+                updateStepIndicators();
                 setActionStatusReady();
                 showScanDoneNotification(epc.vyhybka, epc.cast);
             } else {
                 step2Done = true;
-                step3Done = false;
-                updateStepIndicators();
                 scanDoneAwaitingConfirm = true;
+                updateStepIndicators();
                 setActionStatusReady();
                 showScanDoneNotification(epc.vyhybka, epc.cast);
             }
@@ -1111,6 +1165,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        stopStep3Glow();
         super.onDestroy();
         io.execute(uhf::free);
     }
