@@ -8,13 +8,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
-import android.graphics.Typeface;
 import android.text.Editable;
-import android.text.SpannableString;
-import android.text.Spanned;
 import android.text.TextWatcher;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StyleSpan;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -42,9 +37,11 @@ import com.rfidw.app.rfid.UhfManager;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -56,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int COLOR_STATUS_READY = 0xFF2E7D32;
     private static final int COLOR_STATUS_BUSY = 0xFF5F6A76;
     private static final int COLOR_STATUS_ERROR = 0xFFC62828;
+    private static final int WORKFLOW_DONE_DELAY_MS = 1500;
 
     private final UhfManager uhf = new UhfManager();
     private final EpcModel epc = new EpcModel();
@@ -77,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
     // view reference
     private TextView tvReaderStatus, tvEpcPreview, tvEpcValid, tvSourceFile,
             tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult,
-            tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
+            tvSummaryTudu, tvSummaryVyhybka,
             step1Circle, step2Circle, step3Circle;
     private View summary1, colSummaryTudu, colSummaryVyhybka;
     private BottomSheetBehavior<View> workflowBehavior;
@@ -119,7 +117,6 @@ public class MainActivity extends AppCompatActivity {
         tvLockResult = findViewById(R.id.tvLockResult);
         tvSummaryTudu = findViewById(R.id.tvSummaryTudu);
         tvSummaryVyhybka = findViewById(R.id.tvSummaryVyhybka);
-        tvSummaryCast = findViewById(R.id.tvSummaryCast);
         summary1 = findViewById(R.id.summary1);
         colSummaryTudu = findViewById(R.id.colSummaryTudu);
         colSummaryVyhybka = findViewById(R.id.colSummaryVyhybka);
@@ -232,22 +229,60 @@ public class MainActivity extends AppCompatActivity {
             expandCard1Body();
             return;
         }
-        String[] items = new String[currentTudu.vyhybky.size()];
-        for (int i = 0; i < currentTudu.vyhybky.size(); i++) {
-            Tudu.Vyhybka v = currentTudu.vyhybky.get(i);
-            items[i] = "Výhybka " + v.cislo;
+        final String tuduCode = currentTudu.code;
+        final List<Tudu.Vyhybka> vyhybky = currentTudu.vyhybky;
+        List<String> labels = new ArrayList<>();
+        for (Tudu.Vyhybka v : vyhybky) {
+            labels.add("Výhybka " + v.cislo);
         }
-        int checked = currentVyhybka != null
-                ? currentTudu.vyhybky.indexOf(currentVyhybka) : 0;
+
+        ListView listView = new ListView(this);
+        listView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_list_item_single_choice, labels) {
+            @Override
+            public boolean isEnabled(int position) {
+                return !isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position));
+            }
+
+            @Override
+            public android.view.View getView(int position, android.view.View convertView,
+                    android.view.ViewGroup parent) {
+                android.view.View view = super.getView(position, convertView, parent);
+                TextView tv = (TextView) view;
+                boolean done = isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position));
+                if (done) {
+                    tv.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.text_muted));
+                    tv.setAlpha(0.45f);
+                } else {
+                    tv.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.text));
+                    tv.setAlpha(1f);
+                }
+                return view;
+            }
+        };
+        listView.setAdapter(adapter);
+
+        int checked = currentVyhybka != null ? vyhybky.indexOf(currentVyhybka) : 0;
         if (checked < 0) checked = 0;
-        new AlertDialog.Builder(this)
+        listView.setItemChecked(checked, true);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Vyberte výhybku")
-                .setSingleChoiceItems(items, checked, (d, which) -> {
-                    selectVyhybka(currentTudu.vyhybky.get(which), true);
-                    d.dismiss();
-                })
+                .setView(listView)
                 .setNegativeButton("Zrušit", null)
-                .show();
+                .create();
+
+        listView.setOnItemClickListener((parent, v, position, id) -> {
+            if (isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position))) {
+                toast("Výhybka je již zapsaná v CSV");
+                return;
+            }
+            selectVyhybka(vyhybky.get(position), true);
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     private void setupCollapsibles() {
@@ -306,25 +341,6 @@ public class MainActivity extends AppCompatActivity {
     private void updateSummary1() {
         tvSummaryTudu.setText(epc.tudu == null || epc.tudu.isEmpty() ? "—" : epc.tudu);
         tvSummaryVyhybka.setText(epc.vyhybka > 0 ? String.valueOf(epc.vyhybka) : "—");
-        if (epc.cast > 0) {
-            int total = currentVyhybka != null
-                    ? currentVyhybka.castMax - currentVyhybka.castMin + 1
-                    : 3;
-            String current = String.valueOf(epc.cast);
-            String rest = "/" + total;
-            SpannableString span = new SpannableString(current + rest);
-            int accent = ContextCompat.getColor(this, R.color.accent);
-            span.setSpan(new ForegroundColorSpan(accent), 0, current.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            span.setSpan(new StyleSpan(Typeface.BOLD), 0, current.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            int muted = ContextCompat.getColor(this, R.color.text_muted);
-            span.setSpan(new ForegroundColorSpan(muted), current.length(), span.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            tvSummaryCast.setText(span);
-        } else {
-            tvSummaryCast.setText("—");
-        }
     }
 
     private void resetTagWorkflow() {
@@ -354,7 +370,7 @@ public class MainActivity extends AppCompatActivity {
         step3Done = false;
         updateStepIndicators();
         setActionStatus(status, COLOR_STATUS_ERROR);
-        ui.postDelayed(this::setActionStatusReady, 2000);
+        ui.postDelayed(this::setActionStatusReady, WORKFLOW_DONE_DELAY_MS + 500);
     }
 
     // ---------- šablona EPC ----------
@@ -526,7 +542,8 @@ public class MainActivity extends AppCompatActivity {
         currentTudu = t;
         epc.tudu = t.code;
         if (!t.vyhybky.isEmpty()) {
-            selectVyhybka(t.vyhybky.get(0), true);
+            Tudu.Vyhybka first = firstAvailableVyhybka(t);
+            selectVyhybka(first != null ? first : t.vyhybky.get(0), true);
         } else {
             currentVyhybka = null;
             refreshTemplate();
@@ -538,7 +555,11 @@ public class MainActivity extends AppCompatActivity {
     private void selectVyhybka(Tudu.Vyhybka v, boolean resetCast) {
         currentVyhybka = v;
         epc.vyhybka = v.cislo;
-        if (resetCast) epc.cast = v.castMin;
+        if (resetCast) {
+            epc.cast = currentTudu != null
+                    ? firstMissingCast(currentTudu.code, v)
+                    : v.castMin;
+        }
         refreshTemplate();
         updateStep1();
         updateSummary1();
@@ -727,7 +748,6 @@ public class MainActivity extends AppCompatActivity {
                     + (r.oldEpc != null ? ("\nEPC: " + r.oldEpc) : "")
                     + (r.tid != null ? ("\nTID: " + r.tid) : ""));
             if (chainWorkflow) {
-                onTagCycleComplete();
                 workflowRunning = false;
                 chainWorkflow = false;
                 activeStep = 0;
@@ -736,14 +756,16 @@ public class MainActivity extends AppCompatActivity {
                 updateStepIndicators();
                 setActionStatus("hotovo", COLOR_STATUS_READY);
                 ui.postDelayed(() -> {
+                    onTagCycleComplete();
                     step2Done = false;
                     step3Done = false;
                     updateStepIndicators();
                     setActionStatusReady();
-                }, 1500);
+                }, WORKFLOW_DONE_DELAY_MS);
             } else {
+                onTagCycleComplete();
                 setActionStatus("hotovo", COLOR_STATUS_READY);
-                ui.postDelayed(this::setActionStatusReady, 1500);
+                ui.postDelayed(this::setActionStatusReady, WORKFLOW_DONE_DELAY_MS);
             }
         } else {
             tvLockResult.setTextColor(0xFFC62828);
@@ -814,11 +836,49 @@ public class MainActivity extends AppCompatActivity {
         int idx = currentVyhybka != null
                 ? findVyhybkaIndex(currentVyhybka.cislo)
                 : findVyhybkaIndex(epc.vyhybka);
-        if (idx >= 0 && idx + 1 < currentTudu.vyhybky.size()) {
-            selectVyhybka(currentTudu.vyhybky.get(idx + 1), true);
-        } else if (idx >= 0) {
-            toast("Poslední výhybka v TUDU – cyklus dokončen.");
+        if (idx < 0) return;
+        for (int i = idx + 1; i < currentTudu.vyhybky.size(); i++) {
+            Tudu.Vyhybka next = currentTudu.vyhybky.get(i);
+            if (!isVyhybkaCompleteInCsv(currentTudu.code, next)) {
+                selectVyhybka(next, true);
+                return;
+            }
         }
+        toast("Poslední výhybka v TUDU – cyklus dokončen.");
+    }
+
+    private Tudu.Vyhybka firstAvailableVyhybka(Tudu t) {
+        for (Tudu.Vyhybka v : t.vyhybky) {
+            if (!isVyhybkaCompleteInCsv(t.code, v)) return v;
+        }
+        return null;
+    }
+
+    private boolean isVyhybkaCompleteInCsv(String tuduCode, Tudu.Vyhybka v) {
+        Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
+        for (int c = v.castMin; c <= v.castMax; c++) {
+            if (!written.contains(c)) return false;
+        }
+        return true;
+    }
+
+    private int firstMissingCast(String tuduCode, Tudu.Vyhybka v) {
+        Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
+        for (int c = v.castMin; c <= v.castMax; c++) {
+            if (!written.contains(c)) return c;
+        }
+        return v.castMin;
+    }
+
+    private Set<Integer> getWrittenCastsForVyhybka(String tuduCode, Tudu.Vyhybka v) {
+        Set<Integer> casts = new HashSet<>();
+        for (CsvStore.Row row : csvStore.getRows()) {
+            if (!tuduCode.equals(row.tudu)) continue;
+            if (parseInt(row.vyhybka, -1) != v.cislo) continue;
+            int cast = parseInt(row.cast, -1);
+            if (cast >= 0) casts.add(cast);
+        }
+        return casts;
     }
 
     // ---------- export CSV ----------
