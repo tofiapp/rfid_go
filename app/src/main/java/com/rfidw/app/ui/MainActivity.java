@@ -172,9 +172,22 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupWorkflowSheet() {
         View sheet = findViewById(R.id.workflowSheet);
+        View workflowContent = findViewById(R.id.workflowSheetContent);
         workflowBehavior = BottomSheetBehavior.from(sheet);
         workflowBehavior.setHideable(false);
         workflowBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+
+        workflowBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override
+            public void onStateChanged(View bottomSheet, int newState) {
+                workflowContent.setVisibility(
+                        newState == BottomSheetBehavior.STATE_EXPANDED ? View.VISIBLE : View.GONE);
+            }
+
+            @Override
+            public void onSlide(View bottomSheet, float slideOffset) {
+            }
+        });
 
         findViewById(R.id.workflowSheetHandle).setOnClickListener(v -> {
             if (workflowBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
