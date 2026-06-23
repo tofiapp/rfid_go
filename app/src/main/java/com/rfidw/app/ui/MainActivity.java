@@ -48,9 +48,9 @@ public class MainActivity extends AppCompatActivity {
     // klávesy spouště čtečky (Chainway C5 a příbuzné)
     private static final int[] TRIGGER_KEYS = {139, 280, 293, 311, 312, 522, 523, 0x3E8};
 
-    private static final int TRIGGER_STEP_EPC = 0;
-    private static final int TRIGGER_STEP_PWD = 1;
-    private static final int TRIGGER_STEP_LOCK = 2;
+    private static final int COLOR_STATUS_READY = 0xFF2E7D32;
+    private static final int COLOR_STATUS_BUSY = 0xFF5F6A76;
+    private static final int COLOR_STATUS_ERROR = 0xFFC62828;
 
     private final UhfManager uhf = new UhfManager();
     private final EpcModel epc = new EpcModel();
@@ -65,16 +65,16 @@ public class MainActivity extends AppCompatActivity {
     private CsvAdapter csvAdapter;
     private SharedPreferences prefs;
 
-    /** Aktuální krok fyzického spouště: 0=EPC, 1=heslo, 2=lock */
-    private int triggerStep = TRIGGER_STEP_EPC;
-    private boolean step1Done, step2Done, step3Done, step4Done;
+    private boolean step1Done, step2Done, step3Done;
+    private boolean workflowRunning, chainWorkflow;
+    private int activeStep;
     private boolean suppressSpinnerCallbacks;
 
     // view reference
     private TextView tvReaderStatus, tvEpcPreview, tvEpcValid, tvSourceFile,
             tvVyhybkaInfo, tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult,
             tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
-            step1Circle, step2Circle, step3Circle, step4Circle;
+            step1Circle, step2Circle, step3Circle;
     private View summary1, colSummaryTudu, colSummaryVyhybka;
     private BottomSheetBehavior<View> workflowBehavior;
     private Spinner spTudu, spVyhybka;
@@ -124,7 +124,6 @@ public class MainActivity extends AppCompatActivity {
         step1Circle = findViewById(R.id.step1Circle);
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
-        step4Circle = findViewById(R.id.step4Circle);
         spTudu = findViewById(R.id.spTudu);
         spVyhybka = findViewById(R.id.spVyhybka);
         etAccessPwd = findViewById(R.id.etAccessPwd);
@@ -248,16 +247,19 @@ public class MainActivity extends AppCompatActivity {
     // ---------- indikátor kroků ----------
 
     private void updateStepIndicators() {
-        setStepCircle(step1Circle, step1Done, "1");
-        setStepCircle(step2Circle, step2Done, "2");
-        setStepCircle(step3Circle, step3Done, "3");
-        setStepCircle(step4Circle, step4Done, "4");
+        setStepCircle(step1Circle, step1Done, activeStep == 1, "1");
+        setStepCircle(step2Circle, step2Done, activeStep == 2, "2");
+        setStepCircle(step3Circle, step3Done, activeStep == 3, "3");
     }
 
-    private void setStepCircle(TextView circle, boolean done, String number) {
+    private void setStepCircle(TextView circle, boolean done, boolean active, String number) {
         if (done) {
             circle.setText("✓");
             circle.setBackgroundResource(R.drawable.step_circle_done);
+            circle.setTextColor(0xFFFFFFFF);
+        } else if (active) {
+            circle.setText(number);
+            circle.setBackgroundResource(R.drawable.step_circle_active);
             circle.setTextColor(0xFFFFFFFF);
         } else {
             circle.setText(number);
@@ -286,10 +288,33 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void resetTagWorkflow() {
-        triggerStep = TRIGGER_STEP_EPC;
+        workflowRunning = false;
+        chainWorkflow = false;
+        activeStep = 0;
         step2Done = false;
         step3Done = false;
         updateStepIndicators();
+        setActionStatusReady();
+    }
+
+    private void setActionStatus(String text, int color) {
+        tvReaderStatus.setText(text);
+        tvReaderStatus.setTextColor(color);
+    }
+
+    private void setActionStatusReady() {
+        setActionStatus("připraveno", COLOR_STATUS_READY);
+    }
+
+    private void onWorkflowFailed(String status) {
+        workflowRunning = false;
+        chainWorkflow = false;
+        activeStep = 0;
+        step2Done = false;
+        step3Done = false;
+        updateStepIndicators();
+        setActionStatus(status, COLOR_STATUS_ERROR);
+        ui.postDelayed(this::setActionStatusReady, 2000);
     }
 
     // ---------- šablona EPC ----------
@@ -594,15 +619,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void doWrite() {
-        step4Done = false;
-        updateStepIndicators();
         if (!epc.isValid()) {
             toast("EPC není validní");
+            if (chainWorkflow) onWorkflowFailed("EPC není validní");
             return;
         }
         if (!uhf.isReady()) {
             toast("Čtečka není připravena");
+            if (chainWorkflow) onWorkflowFailed("čtečka nedostupná");
             return;
+        }
+        if (!chainWorkflow) {
+            setActionStatus("zapisuji EPC…", COLOR_STATUS_BUSY);
         }
         final String pwd = etAccessPwd.getText().toString().trim();
         final String newEpc = epc.buildEpc();
@@ -624,12 +652,17 @@ public class MainActivity extends AppCompatActivity {
 
             if (cbAutoCsv.isChecked()) saveRowToCsv(writtenEpc, r.tid);
 
-            triggerStep = TRIGGER_STEP_PWD;
-            step2Done = true;
-            updateStepIndicators();
+            if (chainWorkflow) {
+                setActionStatus("zapisuji heslo…", COLOR_STATUS_BUSY);
+                doWritePassword();
+            } else {
+                setActionStatusReady();
+            }
         } else {
             tvWriteResult.setTextColor(0xFFC62828);
             tvWriteResult.setText("✗ " + r.message);
+            if (chainWorkflow) onWorkflowFailed("chyba EPC");
+            else setActionStatus("chyba EPC", COLOR_STATUS_ERROR);
         }
     }
 
@@ -638,13 +671,18 @@ public class MainActivity extends AppCompatActivity {
     private void doWritePassword() {
         if (!uhf.isReady()) {
             toast("Čtečka není připravena");
+            if (chainWorkflow) onWorkflowFailed("čtečka nedostupná");
             return;
         }
         final String accessPwd = etPwdAccess.getText().toString().trim();
         final String newPwd = etPwdNew.getText().toString().trim();
         if (!newPwd.matches("[0-9A-Fa-f]{8}")) {
             toast("NEW PWD musí mít 8 hex znaků");
+            if (chainWorkflow) onWorkflowFailed("neplatné heslo");
             return;
+        }
+        if (!chainWorkflow) {
+            setActionStatus("zapisuji heslo…", COLOR_STATUS_BUSY);
         }
         tvPwdWriteResult.setText("Zapisuji heslo…");
         tvPwdWriteResult.setTextColor(0xFF5F6A76);
@@ -662,12 +700,17 @@ public class MainActivity extends AppCompatActivity {
                     + (r.oldEpc != null ? ("\nEPC: " + r.oldEpc) : "")
                     + (r.tid != null ? ("\nTID: " + r.tid) : ""));
             etLockAccessPwd.setText(etPwdNew.getText().toString().trim().toUpperCase());
-            triggerStep = TRIGGER_STEP_LOCK;
-            step3Done = true;
-            updateStepIndicators();
+            if (chainWorkflow) {
+                setActionStatus("zamykám…", COLOR_STATUS_BUSY);
+                doLock();
+            } else {
+                setActionStatusReady();
+            }
         } else {
             tvPwdWriteResult.setTextColor(0xFFC62828);
             tvPwdWriteResult.setText("✗ " + r.message);
+            if (chainWorkflow) onWorkflowFailed("chyba hesla");
+            else setActionStatus("chyba hesla", COLOR_STATUS_ERROR);
         }
     }
 
@@ -676,7 +719,11 @@ public class MainActivity extends AppCompatActivity {
     private void doLock() {
         if (!uhf.isReady()) {
             toast("Čtečka není připravena");
+            if (chainWorkflow) onWorkflowFailed("čtečka nedostupná");
             return;
+        }
+        if (!chainWorkflow) {
+            setActionStatus("zamykám…", COLOR_STATUS_BUSY);
         }
         final String accessPwd = etLockAccessPwd.getText().toString().trim();
         final String lockCode = getString(R.string.lock_code_value);
@@ -695,14 +742,31 @@ public class MainActivity extends AppCompatActivity {
             tvLockResult.setText("✓ " + r.message
                     + (r.oldEpc != null ? ("\nEPC: " + r.oldEpc) : "")
                     + (r.tid != null ? ("\nTID: " + r.tid) : ""));
-            step4Done = true;
-            updateStepIndicators();
             advanceAfterWrite();
-            resetTagWorkflow();
             updateSummary1();
+            if (chainWorkflow) {
+                workflowRunning = false;
+                chainWorkflow = false;
+                activeStep = 0;
+                step2Done = true;
+                step3Done = true;
+                updateStepIndicators();
+                setActionStatus("hotovo", COLOR_STATUS_READY);
+                ui.postDelayed(() -> {
+                    step2Done = false;
+                    step3Done = false;
+                    updateStepIndicators();
+                    setActionStatusReady();
+                }, 1500);
+            } else {
+                setActionStatus("hotovo", COLOR_STATUS_READY);
+                ui.postDelayed(this::setActionStatusReady, 1500);
+            }
         } else {
             tvLockResult.setTextColor(0xFFC62828);
             tvLockResult.setText("✗ " + r.message);
+            if (chainWorkflow) onWorkflowFailed("chyba zamčení");
+            else setActionStatus("chyba zamčení", COLOR_STATUS_ERROR);
         }
     }
 
@@ -777,35 +841,44 @@ public class MainActivity extends AppCompatActivity {
     // ---------- čtečka ----------
 
     private void initReaderAsync() {
-        tvReaderStatus.setText("Čtečka: inicializuji…");
+        setActionStatus("inicializuji…", COLOR_STATUS_BUSY);
         io.execute(() -> {
             boolean ok = uhf.init(this);
             int power = ok ? uhf.getPower() : -1;
             ui.post(() -> {
                 if (ok) {
-                    tvReaderStatus.setText("Čtečka: připravena" + (power > 0 ? (" • " + power + " dBm") : ""));
-                    tvReaderStatus.setTextColor(0xFF2E7D32);
+                    setActionStatusReady();
                     if (power > 0) etPower.setText(String.valueOf(power));
                 } else {
-                    tvReaderStatus.setText("Čtečka: NEDOSTUPNÁ");
-                    tvReaderStatus.setTextColor(0xFFC62828);
+                    setActionStatus("nedostupná", COLOR_STATUS_ERROR);
                 }
             });
         });
     }
 
     private void runTriggerAction() {
-        switch (triggerStep) {
-            case TRIGGER_STEP_PWD:
-                doWritePassword();
-                break;
-            case TRIGGER_STEP_LOCK:
-                doLock();
-                break;
-            default:
-                doWrite();
-                break;
+        if (workflowRunning) return;
+        if (!epc.isValid()) {
+            toast("EPC není validní");
+            return;
         }
+        if (!uhf.isReady()) {
+            toast("Čtečka není připravena");
+            return;
+        }
+        final String newPwd = etPwdNew.getText().toString().trim();
+        if (!newPwd.matches("[0-9A-Fa-f]{8}")) {
+            toast("NEW PWD musí mít 8 hex znaků");
+            return;
+        }
+        chainWorkflow = true;
+        workflowRunning = true;
+        activeStep = 2;
+        step2Done = false;
+        step3Done = false;
+        updateStepIndicators();
+        setActionStatus("zapisuji EPC…", COLOR_STATUS_BUSY);
+        doWrite();
     }
 
     @Override
