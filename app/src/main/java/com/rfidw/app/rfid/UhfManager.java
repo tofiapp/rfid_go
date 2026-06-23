@@ -28,6 +28,9 @@ public class UhfManager {
 
     public static final String DEFAULT_LOCK_CODE = "008020";
 
+    /** Výchozí access heslo na tagu; použije se jen při selhání zápisu s uživatelským heslem. */
+    public static final String PRESET_ACCESS_PASSWORD = "11223344";
+
     private RFIDWithUHFUART reader;
     private boolean ready = false;
 
@@ -72,6 +75,7 @@ public class UhfManager {
         public String oldEpc;     // EPC před přepisem (pokud byl tag přečten)
         public String tid;        // TID přečteného tagu
         public String message;
+        public boolean usedPresetPassword;
     }
 
     /**
@@ -99,15 +103,16 @@ public class UhfManager {
                 r.tid = info.getTid();
             }
             if (r.tid == null || r.tid.isEmpty()) {
-                try {
-                    String tid = reader.readData(accessPwd, BANK_TID, 0, EPC_LEN);
-                    if (tid != null) r.tid = tid;
-                } catch (Exception ignored) { }
+                r.tid = readTidWithPresetFallback(accessPwd);
             }
 
-            boolean ok = reader.writeData(accessPwd, BANK_EPC, EPC_PTR, EPC_LEN, newEpc);
-            r.success = ok;
-            r.message = ok ? "EPC zapsáno." : "Zápis EPC se nezdařil (tag mimo dosah / špatné heslo).";
+            PwdWriteAttempt attempt = writeDataWithPresetFallback(
+                    accessPwd, BANK_EPC, EPC_PTR, EPC_LEN, newEpc);
+            r.success = attempt.success;
+            r.usedPresetPassword = attempt.usedPresetPassword;
+            r.message = attempt.success
+                    ? (attempt.usedPresetPassword ? "EPC zapsáno (preset heslo)." : "EPC zapsáno.")
+                    : "Zápis EPC se nezdařil (tag mimo dosah / špatné heslo).";
             return r;
         } catch (Exception e) {
             r.success = false;
@@ -146,9 +151,13 @@ public class UhfManager {
                 return r;
             }
 
-            boolean ok = reader.writeData(accessPwd, BANK_RESERVED, ACCESS_PWD_PTR, ACCESS_PWD_LEN, newPwd);
-            r.success = ok;
-            r.message = ok ? "Access heslo zapsáno." : "Zápis hesla se nezdařil (špatné heslo / tag zamčen).";
+            PwdWriteAttempt attempt = writeDataWithPresetFallback(
+                    accessPwd, BANK_RESERVED, ACCESS_PWD_PTR, ACCESS_PWD_LEN, newPwd);
+            r.success = attempt.success;
+            r.usedPresetPassword = attempt.usedPresetPassword;
+            r.message = attempt.success
+                    ? (attempt.usedPresetPassword ? "Access heslo zapsáno (preset heslo)." : "Access heslo zapsáno.")
+                    : "Zápis hesla se nezdařil (špatné heslo / tag zamčen).";
             return r;
         } catch (Exception e) {
             r.success = false;
@@ -199,6 +208,46 @@ public class UhfManager {
         try {
             return reader != null ? reader.inventorySingleTag() : null;
         } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static class PwdWriteAttempt {
+        boolean success;
+        boolean usedPresetPassword;
+    }
+
+    private PwdWriteAttempt writeDataWithPresetFallback(
+            String accessPwd, int bank, int ptr, int len, String data) {
+        PwdWriteAttempt attempt = new PwdWriteAttempt();
+        String primary = normalizePwd(accessPwd);
+        String preset = normalizePwd(PRESET_ACCESS_PASSWORD);
+
+        try {
+            if (reader.writeData(primary, bank, ptr, len, data)) {
+                attempt.success = true;
+                return attempt;
+            }
+            if (!preset.equals(primary) && reader.writeData(preset, bank, ptr, len, data)) {
+                attempt.success = true;
+                attempt.usedPresetPassword = true;
+            }
+        } catch (Exception ignored) {
+        }
+        return attempt;
+    }
+
+    private String readTidWithPresetFallback(String accessPwd) {
+        String primary = normalizePwd(accessPwd);
+        String preset = normalizePwd(PRESET_ACCESS_PASSWORD);
+        try {
+            String tid = reader.readData(primary, BANK_TID, 0, EPC_LEN);
+            if (tid != null && !tid.isEmpty()) return tid;
+        } catch (Exception ignored) { }
+        if (preset.equals(primary)) return null;
+        try {
+            return reader.readData(preset, BANK_TID, 0, EPC_LEN);
+        } catch (Exception ignored) {
             return null;
         }
     }
