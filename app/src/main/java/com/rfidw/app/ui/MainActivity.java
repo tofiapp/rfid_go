@@ -81,8 +81,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvReaderStatus, tvEpcPreview, tvEpcValid, tvSourceFile,
             tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult,
             tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
+            tvCastHintAction, tvCastHintPart,
             step1Circle, step2Circle, step3Circle;
-    private View summary1, colSummaryTudu, colSummaryVyhybka;
+    private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox;
     private BottomSheetBehavior<View> workflowBehavior;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
@@ -123,6 +124,9 @@ public class MainActivity extends AppCompatActivity {
         tvSummaryTudu = findViewById(R.id.tvSummaryTudu);
         tvSummaryVyhybka = findViewById(R.id.tvSummaryVyhybka);
         tvSummaryCast = findViewById(R.id.tvSummaryCast);
+        castHintBox = findViewById(R.id.castHintBox);
+        tvCastHintAction = findViewById(R.id.tvCastHintAction);
+        tvCastHintPart = findViewById(R.id.tvCastHintPart);
         summary1 = findViewById(R.id.summary1);
         colSummaryTudu = findViewById(R.id.colSummaryTudu);
         colSummaryVyhybka = findViewById(R.id.colSummaryVyhybka);
@@ -365,6 +369,32 @@ public class MainActivity extends AppCompatActivity {
             tvSummaryCast.setText(span);
         } else {
             tvSummaryCast.setText("—");
+        }
+        updateCastHint();
+    }
+
+    private void updateCastHint() {
+        if (currentVyhybka == null || epc.cast <= 0
+                || currentVyhybka.castMax - currentVyhybka.castMin + 1 != 3) {
+            castHintBox.setVisibility(View.GONE);
+            return;
+        }
+        String partName = castPartName(epc.cast);
+        if (partName == null) {
+            castHintBox.setVisibility(View.GONE);
+            return;
+        }
+        tvCastHintAction.setText(getString(R.string.cast_hint_action, epc.cast));
+        tvCastHintPart.setText(partName);
+        castHintBox.setVisibility(View.VISIBLE);
+    }
+
+    private String castPartName(int cast) {
+        switch (cast) {
+            case 1: return getString(R.string.cast_part_1);
+            case 2: return getString(R.string.cast_part_2);
+            case 3: return getString(R.string.cast_part_3);
+            default: return null;
         }
     }
 
