@@ -384,7 +384,18 @@ public class MainActivity extends AppCompatActivity {
             castHintBox.setVisibility(View.GONE);
             return;
         }
-        tvCastHintAction.setText(getString(R.string.cast_hint_action, epc.cast));
+        String prefix = getString(R.string.cast_hint_prefix);
+        String suffix = getString(R.string.cast_hint_suffix);
+        String num = String.valueOf(epc.cast);
+        SpannableString span = new SpannableString(prefix + num + suffix);
+        int accent = ContextCompat.getColor(this, R.color.accent);
+        int numStart = prefix.length();
+        int numEnd = numStart + num.length();
+        span.setSpan(new ForegroundColorSpan(accent), numStart, numEnd,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        span.setSpan(new StyleSpan(Typeface.BOLD), numStart, numEnd,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        tvCastHintAction.setText(span);
         tvCastHintPart.setText(partName);
         castHintBox.setVisibility(View.VISIBLE);
     }
