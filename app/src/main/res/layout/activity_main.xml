@@ -141,6 +141,7 @@
 
             <!-- ============ KARTA 1: Zdroj dat (TUDU) ============ -->
             <LinearLayout
+                android:id="@+id/card1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/card_bg"
@@ -382,6 +383,67 @@
 
         <include layout="@layout/bottom_sheet_workflow"/>
 
+    </LinearLayout>
+
+    <!-- Poslední záznam nad spodním panelem -->
+    <LinearLayout
+        android:id="@+id/lastRecordBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="64dp"
+        android:background="@drawable/card_bg"
+        android:elevation="16dp"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/last_record_label"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp"
+            android:textStyle="bold"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/summary_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="10dp">
+
+            <TextView
+                android:id="@+id/tvLastRecordVyhybka"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="@color/primary_dark"
+                android:textSize="14sp"
+                android:textStyle="bold"/>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="#90CAF9"/>
+
+            <TextView
+                android:id="@+id/tvLastRecordCast"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="@color/primary_dark"
+                android:textSize="14sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Velká notifikace po úspěšném načtení a zamčení tagu -->
