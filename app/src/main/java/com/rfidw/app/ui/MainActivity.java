@@ -64,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
     private final EpcModel epc = new EpcModel();
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
+    private final Runnable hideScanDoneRunnable = this::hideScanDoneNotification;
 
     private List<Tudu> tuduList = new ArrayList<>();
     private Tudu currentTudu;
@@ -82,8 +83,9 @@ public class MainActivity extends AppCompatActivity {
             tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult,
             tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
             tvCastHintAction, tvCastHintPart,
+            tvScanDoneVyhybka, tvScanDoneCast,
             step1Circle, step2Circle, step3Circle;
-    private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox;
+    private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneOverlay;
     private BottomSheetBehavior<View> workflowBehavior;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
@@ -133,6 +135,9 @@ public class MainActivity extends AppCompatActivity {
         step1Circle = findViewById(R.id.step1Circle);
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
+        scanDoneOverlay = findViewById(R.id.scanDoneOverlay);
+        tvScanDoneVyhybka = findViewById(R.id.tvScanDoneVyhybka);
+        tvScanDoneCast = findViewById(R.id.tvScanDoneCast);
         etAccessPwd = findViewById(R.id.etAccessPwd);
         etPower = findViewById(R.id.etPower);
         etPwdAccess = findViewById(R.id.etPwdAccess);
@@ -350,7 +355,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateSummary1() {
         tvSummaryTudu.setText(epc.tudu == null || epc.tudu.isEmpty() ? "—" : epc.tudu);
-        tvSummaryVyhybka.setText(epc.vyhybka > 0 ? String.valueOf(epc.vyhybka) : "—");
+        if (epc.vyhybka > 0) {
+            String vyhStr = String.valueOf(epc.vyhybka);
+            SpannableString vyhSpan = new SpannableString(vyhStr);
+            applyVyhybkaAccent(vyhSpan, 0, vyhStr.length());
+            tvSummaryVyhybka.setText(vyhSpan);
+        } else {
+            tvSummaryVyhybka.setText("—");
+        }
         if (epc.cast > 0) {
             int total = currentVyhybka != null
                     ? currentVyhybka.castMax - currentVyhybka.castMin + 1
@@ -358,11 +370,7 @@ public class MainActivity extends AppCompatActivity {
             String current = String.valueOf(epc.cast);
             String rest = "/" + total;
             SpannableString span = new SpannableString(current + rest);
-            int accent = ContextCompat.getColor(this, R.color.accent);
-            span.setSpan(new ForegroundColorSpan(accent), 0, current.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            span.setSpan(new StyleSpan(Typeface.BOLD), 0, current.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            applyCastAccent(span, 0, current.length());
             int muted = ContextCompat.getColor(this, R.color.text_muted);
             span.setSpan(new ForegroundColorSpan(muted), current.length(), span.length(),
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -389,25 +397,63 @@ public class MainActivity extends AppCompatActivity {
         String castStr = String.valueOf(epc.cast);
         String vyhybkaStr = String.valueOf(epc.vyhybka);
         SpannableString span = new SpannableString(prefix + castStr + mid + vyhybkaStr);
-        int accent = ContextCompat.getColor(this, R.color.accent);
 
         int castStart = prefix.length();
         int castEnd = castStart + castStr.length();
-        span.setSpan(new ForegroundColorSpan(accent), castStart, castEnd,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        span.setSpan(new StyleSpan(Typeface.BOLD), castStart, castEnd,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        applyCastAccent(span, castStart, castEnd);
 
         int vyhStart = castEnd + mid.length();
         int vyhEnd = vyhStart + vyhybkaStr.length();
-        span.setSpan(new ForegroundColorSpan(accent), vyhStart, vyhEnd,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        span.setSpan(new StyleSpan(Typeface.BOLD), vyhStart, vyhEnd,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        applyVyhybkaAccent(span, vyhStart, vyhEnd);
 
         tvCastHintAction.setText(span);
         tvCastHintPart.setText(partName);
         castHintBox.setVisibility(View.VISIBLE);
+    }
+
+    private void applyCastAccent(SpannableString span, int start, int end) {
+        int color = ContextCompat.getColor(this, R.color.accent);
+        span.setSpan(new ForegroundColorSpan(color), start, end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        span.setSpan(new StyleSpan(Typeface.BOLD), start, end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    }
+
+    private void applyVyhybkaAccent(SpannableString span, int start, int end) {
+        int color = ContextCompat.getColor(this, R.color.vyhybka_accent);
+        span.setSpan(new ForegroundColorSpan(color), start, end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        span.setSpan(new StyleSpan(Typeface.BOLD), start, end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    }
+
+    private void showScanDoneNotification(int vyhybka, int cast) {
+        ui.removeCallbacks(hideScanDoneRunnable);
+
+        String vyhPrefix = getString(R.string.scan_done_vyhybka_prefix);
+        String castPrefix = getString(R.string.scan_done_cast_prefix);
+        String vyhStr = String.valueOf(vyhybka);
+        String castStr = String.valueOf(cast);
+
+        SpannableString vyhSpan = new SpannableString(vyhPrefix + vyhStr);
+        applyVyhybkaAccent(vyhSpan, vyhPrefix.length(), vyhSpan.length());
+        tvScanDoneVyhybka.setText(vyhSpan);
+
+        SpannableString castSpan = new SpannableString(castPrefix + castStr);
+        applyCastAccent(castSpan, castPrefix.length(), castSpan.length());
+        tvScanDoneCast.setText(castSpan);
+
+        scanDoneOverlay.setAlpha(0f);
+        scanDoneOverlay.setVisibility(View.VISIBLE);
+        scanDoneOverlay.animate().alpha(1f).setDuration(200).start();
+    }
+
+    private void hideScanDoneNotification() {
+        if (scanDoneOverlay.getVisibility() != View.VISIBLE) return;
+        scanDoneOverlay.animate().alpha(0f).setDuration(150).withEndAction(() -> {
+            scanDoneOverlay.setVisibility(View.GONE);
+            scanDoneOverlay.setAlpha(1f);
+        }).start();
     }
 
     private String castPartName(int cast) {
@@ -831,7 +877,9 @@ public class MainActivity extends AppCompatActivity {
                 step3Done = true;
                 updateStepIndicators();
                 setActionStatus("hotovo", COLOR_STATUS_READY);
+                showScanDoneNotification(epc.vyhybka, epc.cast);
                 ui.postDelayed(() -> {
+                    hideScanDoneNotification();
                     onTagCycleComplete();
                     step2Done = false;
                     step3Done = false;
@@ -839,9 +887,15 @@ public class MainActivity extends AppCompatActivity {
                     setActionStatusReady();
                 }, WORKFLOW_DONE_DELAY_MS);
             } else {
+                final int scannedVyhybka = epc.vyhybka;
+                final int scannedCast = epc.cast;
                 onTagCycleComplete();
                 setActionStatus("hotovo", COLOR_STATUS_READY);
-                ui.postDelayed(this::setActionStatusReady, WORKFLOW_DONE_DELAY_MS);
+                showScanDoneNotification(scannedVyhybka, scannedCast);
+                ui.postDelayed(() -> {
+                    hideScanDoneNotification();
+                    setActionStatusReady();
+                }, WORKFLOW_DONE_DELAY_MS);
             }
         } else {
             tvLockResult.setTextColor(0xFFC62828);
@@ -1036,6 +1090,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        ui.removeCallbacks(hideScanDoneRunnable);
         super.onDestroy();
         io.execute(uhf::free);
     }
