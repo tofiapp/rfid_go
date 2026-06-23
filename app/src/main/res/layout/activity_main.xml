@@ -151,7 +151,7 @@
                     android:id="@+id/header1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="▾ 1. Zdroj dat – výběr TUDU"
+                    android:text="▾ 1. TUDU · Výhybka"
                     android:textColor="@color/primary_dark"
                     android:textSize="16sp"
                     android:textStyle="bold"/>
@@ -220,36 +220,6 @@
                             android:textStyle="bold"/>
                         <TextView
                             android:id="@+id/tvSummaryVyhybka"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="—"
-                            android:textColor="@color/primary_dark"
-                            android:textSize="15sp"
-                            android:textStyle="bold"/>
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="1dp"
-                        android:layout_height="36dp"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginEnd="8dp"
-                        android:background="#90CAF9"/>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:padding="4dp">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Část"
-                            android:textColor="@color/text_muted"
-                            android:textSize="10sp"
-                            android:textStyle="bold"/>
-                        <TextView
-                            android:id="@+id/tvSummaryCast"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="—"
