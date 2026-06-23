@@ -24,14 +24,26 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:paddingBottom="8dp">
-                <TextView
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/app_name"
-                    android:textColor="@color/text"
-                    android:textSize="24sp"
-                    android:textStyle="bold"/>
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="RFID"
+                        android:textColor="@color/primary"
+                        android:textSize="24sp"
+                        android:textStyle="bold"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=" Go"
+                        android:textColor="@color/accent"
+                        android:textSize="24sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
                 <TextView
                     android:id="@+id/tvReaderStatus"
                     android:layout_width="wrap_content"
@@ -520,13 +532,13 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnScanDoneRetry"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.RfidGo.ActionButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:backgroundTint="@color/err"
                 android:text="@string/scan_done_retry"
-                android:textColor="@color/err"
-                app:strokeColor="@color/err"/>
+                android:textColor="#FFFFFF"/>
         </LinearLayout>
     </FrameLayout>
 
