@@ -260,6 +260,34 @@
                 </LinearLayout>
 
                 <LinearLayout
+                    android:id="@+id/castHintBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/hint_bg"
+                    android:orientation="vertical"
+                    android:padding="12dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tvCastHintAction"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/primary_dark"
+                        android:textSize="14sp"/>
+
+                    <TextView
+                        android:id="@+id/tvCastHintPart"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="20dp"
+                        android:paddingTop="2dp"
+                        android:textColor="@color/accent"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+
+                <LinearLayout
                     android:id="@+id/body1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
