@@ -338,7 +338,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/bottom_sheet_bg"
-        android:elevation="12dp"
+        android:elevation="20dp"
         android:orientation="vertical"
         app:behavior_hideable="false"
         app:behavior_peekHeight="56dp"
@@ -370,15 +370,6 @@
                 android:textColor="@color/primary_dark"
                 android:textSize="14sp"
                 android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tvWorkflowSheetSubtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingTop="2dp"
-                android:text="@string/workflow_sheet_subtitle"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp"/>
         </LinearLayout>
 
         <include layout="@layout/bottom_sheet_workflow"/>
@@ -395,7 +386,7 @@
         android:layout_marginEnd="12dp"
         android:layout_marginBottom="64dp"
         android:background="@drawable/card_bg"
-        android:elevation="16dp"
+        android:elevation="8dp"
         android:orientation="vertical"
         android:padding="12dp"
         android:visibility="gone">
@@ -453,6 +444,7 @@
         android:layout_height="match_parent"
         android:background="#B3000000"
         android:clickable="true"
+        android:elevation="32dp"
         android:focusable="true"
         android:visibility="gone">
 
