@@ -27,7 +27,7 @@ import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 
 import com.rfidw.app.R;
 import com.rfidw.app.csv.CsvStore;
@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
             tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
             step1Circle, step2Circle, step3Circle, step4Circle;
     private View summary1, colSummaryTudu, colSummaryVyhybka;
-    private BottomSheetDialog sourceSheet;
+    private BottomSheetBehavior<View> workflowBehavior;
     private Spinner spTudu, spVyhybka;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
@@ -91,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
         prefs = getSharedPreferences("rfidgo", MODE_PRIVATE);
 
         bindViews();
-        setupSourceSheet();
+        setupWorkflowSheet();
         setupCollapsibles();
         setupTemplateRows();
         setupCsv();
@@ -109,6 +109,8 @@ public class MainActivity extends AppCompatActivity {
         tvReaderStatus = findViewById(R.id.tvReaderStatus);
         tvEpcPreview = findViewById(R.id.tvEpcPreview);
         tvEpcValid = findViewById(R.id.tvEpcValid);
+        tvSourceFile = findViewById(R.id.tvSourceFile);
+        tvVyhybkaInfo = findViewById(R.id.tvVyhybkaInfo);
         tvWriteResult = findViewById(R.id.tvWriteResult);
         tvCsvPath = findViewById(R.id.tvCsvPath);
         tvPwdWriteResult = findViewById(R.id.tvPwdWriteResult);
@@ -123,6 +125,8 @@ public class MainActivity extends AppCompatActivity {
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
         step4Circle = findViewById(R.id.step4Circle);
+        spTudu = findViewById(R.id.spTudu);
+        spVyhybka = findViewById(R.id.spVyhybka);
         etAccessPwd = findViewById(R.id.etAccessPwd);
         etPower = findViewById(R.id.etPower);
         etPwdAccess = findViewById(R.id.etPwdAccess);
@@ -139,50 +143,38 @@ public class MainActivity extends AppCompatActivity {
         rows[6] = findViewById(R.id.row7);
     }
 
-    // ---------- rozbalovací karty ----------
+    // ---------- rozbalovací karty a spodní panel ----------
 
-    private void setupSourceSheet() {
-        sourceSheet = new BottomSheetDialog(this);
-        View sheet = getLayoutInflater().inflate(R.layout.bottom_sheet_source, null);
-        sourceSheet.setContentView(sheet);
+    private void setupWorkflowSheet() {
+        View sheet = findViewById(R.id.workflowSheet);
+        workflowBehavior = BottomSheetBehavior.from(sheet);
+        workflowBehavior.setHideable(false);
+        workflowBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
 
-        tvSourceFile = sheet.findViewById(R.id.tvSourceFile);
-        tvVyhybkaInfo = sheet.findViewById(R.id.tvVyhybkaInfo);
-        spTudu = sheet.findViewById(R.id.spTudu);
-        spVyhybka = sheet.findViewById(R.id.spVyhybka);
-
-        sheet.findViewById(R.id.btnPickSource).setOnClickListener(v -> pickSourceFile());
-
-        spTudu.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                if (suppressSpinnerCallbacks) return;
-                if (pos >= 0 && pos < tuduList.size()) selectTudu(tuduList.get(pos));
+        findViewById(R.id.workflowSheetHandle).setOnClickListener(v -> {
+            if (workflowBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
+                workflowBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+            } else {
+                workflowBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
             }
-            public void onNothingSelected(AdapterView<?> p) { }
         });
-
-        spVyhybka.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                if (suppressSpinnerCallbacks) return;
-                if (currentTudu != null && pos >= 0 && pos < currentTudu.vyhybky.size()) {
-                    selectVyhybka(currentTudu.vyhybky.get(pos), true);
-                }
-            }
-            public void onNothingSelected(AdapterView<?> p) { }
-        });
-
-        View openSheet = v -> sourceSheet.show();
-        findViewById(R.id.header1).setOnClickListener(openSheet);
-        findViewById(R.id.btnOpenSourceSheet).setOnClickListener(openSheet);
 
         colSummaryTudu.setOnClickListener(v -> showTuduPicker());
         colSummaryVyhybka.setOnClickListener(v -> showVyhybkaPicker());
     }
 
+    private void expandCard1Body() {
+        View body = findViewById(R.id.body1);
+        TextView header = findViewById(R.id.header1);
+        body.setVisibility(View.VISIBLE);
+        String t = header.getText().toString();
+        if (t.startsWith("▸")) header.setText("▾" + t.substring(1));
+    }
+
     private void showTuduPicker() {
         if (tuduList.isEmpty()) {
             toast("Nejdříve vyberte soubor se zdrojem dat");
-            sourceSheet.show();
+            expandCard1Body();
             return;
         }
         String[] items = new String[tuduList.size()];
@@ -209,7 +201,7 @@ public class MainActivity extends AppCompatActivity {
     private void showVyhybkaPicker() {
         if (currentTudu == null || currentTudu.vyhybky.isEmpty()) {
             toast("TUDU nemá výhybky – vyberte soubor nebo TUDU");
-            sourceSheet.show();
+            expandCard1Body();
             return;
         }
         String[] items = new String[currentTudu.vyhybky.size()];
@@ -231,6 +223,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupCollapsibles() {
+        toggle(R.id.header1, R.id.body1, 0);
         toggle(R.id.header2, R.id.body2, 0);
         toggle(R.id.header3, R.id.body3, 0);
         toggle(R.id.header4, R.id.body4, 0);
@@ -410,6 +403,26 @@ public class MainActivity extends AppCompatActivity {
     // ---------- listenery ----------
 
     private void setupListeners() {
+        findViewById(R.id.btnPickSource).setOnClickListener(v -> pickSourceFile());
+
+        spTudu.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                if (suppressSpinnerCallbacks) return;
+                if (pos >= 0 && pos < tuduList.size()) selectTudu(tuduList.get(pos));
+            }
+            public void onNothingSelected(AdapterView<?> p) { }
+        });
+
+        spVyhybka.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                if (suppressSpinnerCallbacks) return;
+                if (currentTudu != null && pos >= 0 && pos < currentTudu.vyhybky.size()) {
+                    selectVyhybka(currentTudu.vyhybky.get(pos), true);
+                }
+            }
+            public void onNothingSelected(AdapterView<?> p) { }
+        });
+
         findViewById(R.id.btnApplyPower).setOnClickListener(v -> applyPower());
         findViewById(R.id.btnWrite).setOnClickListener(v -> doWrite());
         findViewById(R.id.btnWritePwd).setOnClickListener(v -> doWritePassword());
