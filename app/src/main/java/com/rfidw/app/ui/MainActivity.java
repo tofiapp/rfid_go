@@ -526,6 +526,7 @@ public class MainActivity extends AppCompatActivity {
 
         scanDoneOverlay.setAlpha(0f);
         scanDoneOverlay.setVisibility(View.VISIBLE);
+        scanDoneOverlay.bringToFront();
         scanDoneOverlay.animate().alpha(1f).setDuration(200).start();
     }
 
