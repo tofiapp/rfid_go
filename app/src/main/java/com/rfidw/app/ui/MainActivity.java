@@ -12,11 +12,10 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.KeyEvent;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.Spinner;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,6 +37,7 @@ import com.rfidw.app.rfid.UhfManager;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -68,16 +68,14 @@ public class MainActivity extends AppCompatActivity {
     private boolean step1Done, step2Done, step3Done;
     private boolean workflowRunning, chainWorkflow;
     private int activeStep;
-    private boolean suppressSpinnerCallbacks;
 
     // view reference
     private TextView tvReaderStatus, tvEpcPreview, tvEpcValid, tvSourceFile,
-            tvVyhybkaInfo, tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult,
+            tvWriteResult, tvCsvPath, tvPwdWriteResult, tvLockResult,
             tvSummaryTudu, tvSummaryVyhybka, tvSummaryCast,
             step1Circle, step2Circle, step3Circle;
     private View summary1, colSummaryTudu, colSummaryVyhybka;
     private BottomSheetBehavior<View> workflowBehavior;
-    private Spinner spTudu, spVyhybka;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
 
@@ -110,7 +108,6 @@ public class MainActivity extends AppCompatActivity {
         tvEpcPreview = findViewById(R.id.tvEpcPreview);
         tvEpcValid = findViewById(R.id.tvEpcValid);
         tvSourceFile = findViewById(R.id.tvSourceFile);
-        tvVyhybkaInfo = findViewById(R.id.tvVyhybkaInfo);
         tvWriteResult = findViewById(R.id.tvWriteResult);
         tvCsvPath = findViewById(R.id.tvCsvPath);
         tvPwdWriteResult = findViewById(R.id.tvPwdWriteResult);
@@ -124,8 +121,6 @@ public class MainActivity extends AppCompatActivity {
         step1Circle = findViewById(R.id.step1Circle);
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
-        spTudu = findViewById(R.id.spTudu);
-        spVyhybka = findViewById(R.id.spVyhybka);
         etAccessPwd = findViewById(R.id.etAccessPwd);
         etPower = findViewById(R.id.etPower);
         etPwdAccess = findViewById(R.id.etPwdAccess);
@@ -176,25 +171,54 @@ public class MainActivity extends AppCompatActivity {
             expandCard1Body();
             return;
         }
-        String[] items = new String[tuduList.size()];
-        for (int i = 0; i < tuduList.size(); i++) items[i] = tuduList.get(i).code;
-        int checked = 0;
-        if (currentTudu != null) {
-            for (int i = 0; i < tuduList.size(); i++) {
-                if (tuduList.get(i).code.equals(currentTudu.code)) {
-                    checked = i;
+
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_tudu_picker, null);
+        EditText etSearch = dialogView.findViewById(R.id.etTuduSearch);
+        ListView listView = dialogView.findViewById(R.id.lvTudu);
+
+        List<String> filteredCodes = new ArrayList<>();
+        for (Tudu t : tuduList) filteredCodes.add(t.code);
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_single_choice, filteredCodes);
+        listView.setAdapter(adapter);
+
+        int checked = filteredCodes.indexOf(currentTudu != null ? currentTudu.code : "");
+        if (checked >= 0) listView.setItemChecked(checked, true);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Vyberte TUDU")
+                .setView(dialogView)
+                .setNegativeButton("Zrušit", null)
+                .create();
+
+        listView.setOnItemClickListener((parent, v, position, id) -> {
+            String code = filteredCodes.get(position);
+            for (Tudu t : tuduList) {
+                if (t.code.equals(code)) {
+                    selectTudu(t);
                     break;
                 }
             }
-        }
-        new AlertDialog.Builder(this)
-                .setTitle("Vyberte TUDU")
-                .setSingleChoiceItems(items, checked, (d, which) -> {
-                    selectTudu(tuduList.get(which));
-                    d.dismiss();
-                })
-                .setNegativeButton("Zrušit", null)
-                .show();
+            dialog.dismiss();
+        });
+
+        etSearch.addTextChangedListener(new SimpleWatcher(() -> {
+            String q = etSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
+            filteredCodes.clear();
+            for (Tudu t : tuduList) {
+                if (q.isEmpty() || t.code.toLowerCase(Locale.ROOT).contains(q)) {
+                    filteredCodes.add(t.code);
+                }
+            }
+            adapter.notifyDataSetChanged();
+            String selected = currentTudu != null ? currentTudu.code : "";
+            int pos = filteredCodes.indexOf(selected);
+            if (pos >= 0) listView.setItemChecked(pos, true);
+        }));
+
+        dialog.show();
+        etSearch.requestFocus();
     }
 
     private void showVyhybkaPicker() {
@@ -430,24 +454,6 @@ public class MainActivity extends AppCompatActivity {
     private void setupListeners() {
         findViewById(R.id.btnPickSource).setOnClickListener(v -> pickSourceFile());
 
-        spTudu.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                if (suppressSpinnerCallbacks) return;
-                if (pos >= 0 && pos < tuduList.size()) selectTudu(tuduList.get(pos));
-            }
-            public void onNothingSelected(AdapterView<?> p) { }
-        });
-
-        spVyhybka.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                if (suppressSpinnerCallbacks) return;
-                if (currentTudu != null && pos >= 0 && pos < currentTudu.vyhybky.size()) {
-                    selectVyhybka(currentTudu.vyhybky.get(pos), true);
-                }
-            }
-            public void onNothingSelected(AdapterView<?> p) { }
-        });
-
         findViewById(R.id.btnApplyPower).setOnClickListener(v -> applyPower());
         findViewById(R.id.btnWrite).setOnClickListener(v -> doWrite());
         findViewById(R.id.btnWritePwd).setOnClickListener(v -> doWritePassword());
@@ -485,7 +491,7 @@ public class MainActivity extends AppCompatActivity {
                 ui.post(() -> {
                     tuduList = loaded;
                     tvSourceFile.setText(name + "  •  TUDU: " + loaded.size());
-                    fillTuduSpinner();
+                    onTuduListLoaded();
                 });
             } catch (Exception e) {
                 ui.post(() -> {
@@ -496,54 +502,27 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void fillTuduSpinner() {
-        List<String> labels = new ArrayList<>();
-        for (Tudu t : tuduList) labels.add(t.code);
-        ArrayAdapter<String> a = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, labels);
-        spTudu.setAdapter(a);
-        if (!tuduList.isEmpty()) selectTudu(tuduList.get(0));
+    private void onTuduListLoaded() {
+        if (!tuduList.isEmpty()) showTuduPicker();
     }
 
     private void selectTudu(Tudu t) {
         currentTudu = t;
         epc.tudu = t.code;
-        int tuduPos = tuduList.indexOf(t);
-        if (tuduPos >= 0) {
-            suppressSpinnerCallbacks = true;
-            spTudu.setSelection(tuduPos);
-            suppressSpinnerCallbacks = false;
-        }
-        List<String> labels = new ArrayList<>();
-        for (Tudu.Vyhybka v : t.vyhybky) labels.add("Výhybka " + v.cislo);
-        ArrayAdapter<String> a = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, labels);
-        spVyhybka.setAdapter(a);
         if (!t.vyhybky.isEmpty()) {
             selectVyhybka(t.vyhybky.get(0), true);
         } else {
             currentVyhybka = null;
-            tvVyhybkaInfo.setText("TUDU nemá definované výhybky – zadejte výhybku a část ručně.");
+            refreshTemplate();
+            updateStep1();
+            updateSummary1();
         }
-        refreshTemplate();
-        updateStep1();
-        updateSummary1();
     }
 
     private void selectVyhybka(Tudu.Vyhybka v, boolean resetCast) {
         currentVyhybka = v;
         epc.vyhybka = v.cislo;
         if (resetCast) epc.cast = v.castMin;
-        if (currentTudu != null) {
-            int pos = currentTudu.vyhybky.indexOf(v);
-            if (pos >= 0) {
-                suppressSpinnerCallbacks = true;
-                spVyhybka.setSelection(pos);
-                suppressSpinnerCallbacks = false;
-            }
-        }
-        tvVyhybkaInfo.setText("Výhybka " + v.cislo + " • části " + v.castMin + "–" + v.castMax
-                + "  (TUDU " + (currentTudu != null ? currentTudu.code : "-") + ")");
         refreshTemplate();
         updateStep1();
         updateSummary1();
@@ -558,7 +537,6 @@ public class MainActivity extends AppCompatActivity {
         epc.idRfid = parseLong(row.idRfid, epc.idRfid);
         prefs.edit().putLong("idRfid", epc.idRfid).apply();
 
-        suppressSpinnerCallbacks = true;
         int tuduPos = -1;
         for (int i = 0; i < tuduList.size(); i++) {
             if (tuduList.get(i).code.equals(row.tudu)) {
@@ -568,12 +546,6 @@ public class MainActivity extends AppCompatActivity {
         }
         if (tuduPos >= 0) {
             currentTudu = tuduList.get(tuduPos);
-            spTudu.setSelection(tuduPos);
-            List<String> labels = new ArrayList<>();
-            for (Tudu.Vyhybka v : currentTudu.vyhybky) labels.add("Výhybka " + v.cislo);
-            ArrayAdapter<String> a = new ArrayAdapter<>(this,
-                    android.R.layout.simple_spinner_dropdown_item, labels);
-            spVyhybka.setAdapter(a);
             int vyhybkaPos = -1;
             for (int i = 0; i < currentTudu.vyhybky.size(); i++) {
                 if (currentTudu.vyhybky.get(i).cislo == epc.vyhybka) {
@@ -583,13 +555,8 @@ public class MainActivity extends AppCompatActivity {
             }
             if (vyhybkaPos >= 0) {
                 currentVyhybka = currentTudu.vyhybky.get(vyhybkaPos);
-                spVyhybka.setSelection(vyhybkaPos);
-                tvVyhybkaInfo.setText("Výhybka " + currentVyhybka.cislo + " • části "
-                        + currentVyhybka.castMin + "–" + currentVyhybka.castMax
-                        + "  (TUDU " + currentTudu.code + ")");
             }
         }
-        suppressSpinnerCallbacks = false;
 
         refreshTemplate();
         updateStep1();
@@ -811,7 +778,7 @@ public class MainActivity extends AppCompatActivity {
         if (currentTudu == null || currentTudu.vyhybky.isEmpty()) return;
         int idx = currentTudu.vyhybky.indexOf(currentVyhybka);
         if (idx >= 0 && idx + 1 < currentTudu.vyhybky.size()) {
-            spVyhybka.setSelection(idx + 1);
+            selectVyhybka(currentTudu.vyhybky.get(idx + 1), true);
         } else {
             toast("Poslední výhybka v TUDU – cyklus dokončen.");
         }
