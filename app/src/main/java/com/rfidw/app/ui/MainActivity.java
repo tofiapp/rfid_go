@@ -64,7 +64,6 @@ public class MainActivity extends AppCompatActivity {
     private final EpcModel epc = new EpcModel();
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private final Runnable hideScanDoneRunnable = this::hideScanDoneNotification;
 
     private List<Tudu> tuduList = new ArrayList<>();
     private Tudu currentTudu;
@@ -75,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences prefs;
 
     private boolean step1Done, step2Done, step3Done;
-    private boolean workflowRunning, chainWorkflow;
+    private boolean workflowRunning, chainWorkflow, scanDoneAwaitingConfirm;
     private int activeStep;
 
     // view reference
@@ -428,8 +427,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showScanDoneNotification(int vyhybka, int cast) {
-        ui.removeCallbacks(hideScanDoneRunnable);
-
         String vyhPrefix = getString(R.string.scan_done_vyhybka_prefix);
         String castPrefix = getString(R.string.scan_done_cast_prefix);
         String vyhStr = String.valueOf(vyhybka);
@@ -446,6 +443,29 @@ public class MainActivity extends AppCompatActivity {
         scanDoneOverlay.setAlpha(0f);
         scanDoneOverlay.setVisibility(View.VISIBLE);
         scanDoneOverlay.animate().alpha(1f).setDuration(200).start();
+    }
+
+    private void onScanDoneContinue() {
+        if (!scanDoneAwaitingConfirm) return;
+        scanDoneAwaitingConfirm = false;
+        hideScanDoneNotification();
+        onTagCycleComplete();
+        step2Done = false;
+        step3Done = false;
+        updateStepIndicators();
+        setActionStatusReady();
+    }
+
+    private void onScanDoneRetry() {
+        if (!scanDoneAwaitingConfirm) return;
+        scanDoneAwaitingConfirm = false;
+        hideScanDoneNotification();
+        step2Done = false;
+        step3Done = false;
+        updateStepIndicators();
+        refreshTemplate();
+        updateSummary1();
+        setActionStatusReady();
     }
 
     private void hideScanDoneNotification() {
@@ -468,6 +488,7 @@ public class MainActivity extends AppCompatActivity {
     private void resetTagWorkflow() {
         workflowRunning = false;
         chainWorkflow = false;
+        scanDoneAwaitingConfirm = false;
         activeStep = 0;
         step2Done = false;
         step3Done = false;
@@ -487,6 +508,7 @@ public class MainActivity extends AppCompatActivity {
     private void onWorkflowFailed(String status) {
         workflowRunning = false;
         chainWorkflow = false;
+        scanDoneAwaitingConfirm = false;
         activeStep = 0;
         step2Done = false;
         step3Done = false;
@@ -614,6 +636,8 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnLock).setOnClickListener(v -> doLock());
         findViewById(R.id.btnExportCsv).setOnClickListener(v -> exportCsv());
         findViewById(R.id.btnClearCsv).setOnClickListener(v -> deleteLastCsvRow());
+        findViewById(R.id.btnScanDoneContinue).setOnClickListener(v -> onScanDoneContinue());
+        findViewById(R.id.btnScanDoneRetry).setOnClickListener(v -> onScanDoneRetry());
     }
 
     // ---------- výběr souboru / TUDU ----------
@@ -745,6 +769,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void doWrite() {
+        if (scanDoneAwaitingConfirm) return;
         if (!epc.isValid()) {
             toast("EPC není validní");
             if (chainWorkflow) onWorkflowFailed("EPC není validní");
@@ -796,6 +821,7 @@ public class MainActivity extends AppCompatActivity {
     // ---------- zápis access hesla ----------
 
     private void doWritePassword() {
+        if (scanDoneAwaitingConfirm) return;
         if (!uhf.isReady()) {
             toast("Čtečka není připravena");
             if (chainWorkflow) onWorkflowFailed("čtečka nedostupná");
@@ -844,6 +870,7 @@ public class MainActivity extends AppCompatActivity {
     // ---------- zamčení tagu ----------
 
     private void doLock() {
+        if (scanDoneAwaitingConfirm) return;
         if (!uhf.isReady()) {
             toast("Čtečka není připravena");
             if (chainWorkflow) onWorkflowFailed("čtečka nedostupná");
@@ -874,28 +901,18 @@ public class MainActivity extends AppCompatActivity {
                 chainWorkflow = false;
                 activeStep = 0;
                 step2Done = true;
-                step3Done = true;
+                step3Done = false;
                 updateStepIndicators();
-                setActionStatus("hotovo", COLOR_STATUS_READY);
+                scanDoneAwaitingConfirm = true;
+                setActionStatusReady();
                 showScanDoneNotification(epc.vyhybka, epc.cast);
-                ui.postDelayed(() -> {
-                    hideScanDoneNotification();
-                    onTagCycleComplete();
-                    step2Done = false;
-                    step3Done = false;
-                    updateStepIndicators();
-                    setActionStatusReady();
-                }, WORKFLOW_DONE_DELAY_MS);
             } else {
-                final int scannedVyhybka = epc.vyhybka;
-                final int scannedCast = epc.cast;
-                onTagCycleComplete();
-                setActionStatus("hotovo", COLOR_STATUS_READY);
-                showScanDoneNotification(scannedVyhybka, scannedCast);
-                ui.postDelayed(() -> {
-                    hideScanDoneNotification();
-                    setActionStatusReady();
-                }, WORKFLOW_DONE_DELAY_MS);
+                step2Done = true;
+                step3Done = false;
+                updateStepIndicators();
+                scanDoneAwaitingConfirm = true;
+                setActionStatusReady();
+                showScanDoneNotification(epc.vyhybka, epc.cast);
             }
         } else {
             tvLockResult.setTextColor(0xFFC62828);
@@ -1051,7 +1068,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void runTriggerAction() {
-        if (workflowRunning) return;
+        if (workflowRunning || scanDoneAwaitingConfirm) return;
         if (!epc.isValid()) {
             toast("EPC není validní");
             return;
@@ -1080,7 +1097,11 @@ public class MainActivity extends AppCompatActivity {
         if (event.getRepeatCount() == 0) {
             for (int k : TRIGGER_KEYS) {
                 if (k == keyCode) {
-                    runTriggerAction();
+                    if (scanDoneAwaitingConfirm) {
+                        onScanDoneContinue();
+                    } else {
+                        runTriggerAction();
+                    }
                     return true;
                 }
             }
@@ -1090,7 +1111,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        ui.removeCallbacks(hideScanDoneRunnable);
         super.onDestroy();
         io.execute(uhf::free);
     }
