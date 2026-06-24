@@ -198,6 +198,11 @@ public class MainActivity extends AppCompatActivity {
                 workflowContent.setVisibility(expanded ? View.VISIBLE : View.GONE);
                 updateWorkflowSheetOverlay(bottomSheet, expanded);
             }
+
+            @Override
+            public void onSlide(View bottomSheet, float slideOffset) {
+                // bez zašednutí – panel sám překryje obsah
+            }
         });
 
         findViewById(R.id.workflowSheetHandle).setOnClickListener(v -> {
