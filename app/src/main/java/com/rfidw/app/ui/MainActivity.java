@@ -20,6 +20,7 @@ import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -89,8 +90,8 @@ public class MainActivity extends AppCompatActivity {
             tvScanDoneVyhybka, tvScanDoneCast,
             tvLastRecordVyhybka, tvLastRecordCast,
             step1Circle, step2Circle, step3Circle, step3Label;
-    private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneOverlay,
-            lastRecordBox, card1;
+    private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneScrim,
+            scanDoneDialog, lastRecordBox, card1, topBar;
     private NestedScrollView mainScroll;
     private BottomSheetBehavior<View> workflowBehavior;
     private AnimatorSet step3GlowAnimator;
@@ -107,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
         prefs = getSharedPreferences("rfidgo", MODE_PRIVATE);
 
         bindViews();
+        setupTopBarInsets();
         setupWorkflowSheet();
         setupCollapsibles();
         setupTemplateRows();
@@ -144,7 +146,8 @@ public class MainActivity extends AppCompatActivity {
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
         step3Label = findViewById(R.id.step3Label);
-        scanDoneOverlay = findViewById(R.id.scanDoneOverlay);
+        scanDoneScrim = findViewById(R.id.scanDoneScrim);
+        scanDoneDialog = findViewById(R.id.scanDoneDialog);
         tvScanDoneVyhybka = findViewById(R.id.tvScanDoneVyhybka);
         tvScanDoneCast = findViewById(R.id.tvScanDoneCast);
         lastRecordBox = findViewById(R.id.lastRecordBox);
@@ -152,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
         tvLastRecordCast = findViewById(R.id.tvLastRecordCast);
         mainScroll = findViewById(R.id.mainScroll);
         card1 = findViewById(R.id.card1);
+        topBar = findViewById(R.id.topBar);
         etAccessPwd = findViewById(R.id.etAccessPwd);
         etPower = findViewById(R.id.etPower);
         etPwdAccess = findViewById(R.id.etPwdAccess);
@@ -166,6 +170,17 @@ public class MainActivity extends AppCompatActivity {
         rows[4] = findViewById(R.id.row5);
         rows[5] = findViewById(R.id.row6);
         rows[6] = findViewById(R.id.row7);
+    }
+
+    private void setupTopBarInsets() {
+        topBar.post(() -> {
+            int topInset = topBar.getHeight();
+            mainScroll.setPadding(
+                    mainScroll.getPaddingLeft(),
+                    topInset,
+                    mainScroll.getPaddingRight(),
+                    mainScroll.getPaddingBottom());
+        });
     }
 
     // ---------- rozbalovací karty a spodní panel ----------
@@ -537,10 +552,16 @@ public class MainActivity extends AppCompatActivity {
         updateStepIndicators();
         startStep3Glow();
 
-        scanDoneOverlay.setAlpha(0f);
-        scanDoneOverlay.setVisibility(View.VISIBLE);
-        scanDoneOverlay.bringToFront();
-        scanDoneOverlay.animate().alpha(1f).setDuration(200).start();
+        scanDoneScrim.setAlpha(0f);
+        scanDoneDialog.setAlpha(0f);
+        ViewGroup.MarginLayoutParams scrimLp =
+                (ViewGroup.MarginLayoutParams) scanDoneScrim.getLayoutParams();
+        scrimLp.topMargin = topBar.getHeight();
+        scanDoneScrim.setLayoutParams(scrimLp);
+        scanDoneScrim.setVisibility(View.VISIBLE);
+        scanDoneDialog.setVisibility(View.VISIBLE);
+        scanDoneScrim.animate().alpha(1f).setDuration(200).start();
+        scanDoneDialog.animate().alpha(1f).setDuration(200).start();
     }
 
     private void startStep3Glow() {
@@ -607,14 +628,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void hideScanDoneNotification(Runnable onHidden) {
-        if (scanDoneOverlay.getVisibility() != View.VISIBLE) {
+        if (scanDoneDialog.getVisibility() != View.VISIBLE) {
             if (onHidden != null) onHidden.run();
             return;
         }
-        scanDoneOverlay.animate().alpha(0f).setDuration(150).withEndAction(() -> {
+        scanDoneScrim.animate().alpha(0f).setDuration(150).start();
+        scanDoneDialog.animate().alpha(0f).setDuration(150).withEndAction(() -> {
             stopStep3Glow();
-            scanDoneOverlay.setVisibility(View.GONE);
-            scanDoneOverlay.setAlpha(1f);
+            scanDoneScrim.setVisibility(View.GONE);
+            scanDoneDialog.setVisibility(View.GONE);
+            scanDoneScrim.setAlpha(1f);
+            scanDoneDialog.setAlpha(1f);
             if (onHidden != null) onHidden.run();
         }).start();
     }
