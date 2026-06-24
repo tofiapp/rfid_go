@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
     private CsvAdapter csvAdapter;
     private SharedPreferences prefs;
 
-    private boolean step1Done, step2Done, step3Done;
+    private boolean step1Done, step2Done, step3Done, step2Failed;
     private boolean workflowRunning, chainWorkflow, scanDoneAwaitingConfirm;
     private int activeStep;
 
@@ -171,9 +171,11 @@ public class MainActivity extends AppCompatActivity {
     private void setupTopBarInsets() {
         topBar.post(() -> {
             int topInset = topBar.getHeight();
+            int gap = (int) TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP, CARD1_TOP_GAP_DP, getResources().getDisplayMetrics());
             mainScroll.setPadding(
                     mainScroll.getPaddingLeft(),
-                    topInset,
+                    topInset + gap,
                     mainScroll.getPaddingRight(),
                     mainScroll.getPaddingBottom());
         });
@@ -183,6 +185,9 @@ public class MainActivity extends AppCompatActivity {
 
     private static final float WORKFLOW_SHEET_ELEVATION_COLLAPSED_DP = 20f;
     private static final float WORKFLOW_SHEET_ELEVATION_EXPANDED_DP = 44f;
+    private static final float SCAN_DONE_SCRIM_ELEVATION_DP = 34f;
+    private static final float SCAN_DONE_SCRIM_ELEVATION_OVER_SHEET_DP = 46f;
+    private static final float CARD1_TOP_GAP_DP = 8f;
 
     private void setupWorkflowSheet() {
         View sheet = findViewById(R.id.workflowSheet);
@@ -195,13 +200,25 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onStateChanged(View bottomSheet, int newState) {
                 boolean expanded = newState == BottomSheetBehavior.STATE_EXPANDED;
-                workflowContent.setVisibility(expanded ? View.VISIBLE : View.GONE);
+                if (!expanded && newState == BottomSheetBehavior.STATE_COLLAPSED) {
+                    workflowContent.setVisibility(View.GONE);
+                    workflowContent.setAlpha(1f);
+                } else if (expanded) {
+                    workflowContent.setVisibility(View.VISIBLE);
+                    workflowContent.setAlpha(1f);
+                }
                 updateWorkflowSheetOverlay(bottomSheet, expanded);
             }
 
             @Override
             public void onSlide(View bottomSheet, float slideOffset) {
-                // bez zašednutí – panel sám překryje obsah
+                if (slideOffset <= 0f) {
+                    workflowContent.setVisibility(View.GONE);
+                    workflowContent.setAlpha(1f);
+                    return;
+                }
+                workflowContent.setVisibility(View.VISIBLE);
+                workflowContent.setAlpha(Math.min(1f, slideOffset * 1.5f));
             }
         });
 
@@ -219,11 +236,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateWorkflowSheetOverlay(View sheet, boolean expanded) {
         updateWorkflowSheetElevation(sheet, expanded);
-        if (expanded) {
-            if (scanDoneScrim.getVisibility() == View.VISIBLE) {
-                scanDoneScrim.setVisibility(View.GONE);
-            }
-        } else if (scanDoneDialog.getVisibility() == View.VISIBLE) {
+        if (scanDoneDialog.getVisibility() == View.VISIBLE) {
             showScanDoneScrimBehindTopBar();
         }
     }
@@ -233,13 +246,17 @@ public class MainActivity extends AppCompatActivity {
                 (ViewGroup.MarginLayoutParams) scanDoneScrim.getLayoutParams();
         scrimLp.topMargin = topBar.getHeight();
         scanDoneScrim.setLayoutParams(scrimLp);
+        scanDoneScrim.setElevation(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, SCAN_DONE_SCRIM_ELEVATION_OVER_SHEET_DP,
+                getResources().getDisplayMetrics()));
         scanDoneScrim.setVisibility(View.VISIBLE);
         scanDoneScrim.setAlpha(1f);
     }
 
-    private boolean isWorkflowSheetExpanded() {
-        return workflowBehavior != null
-                && workflowBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED;
+    private void resetScanDoneScrimElevation() {
+        scanDoneScrim.setElevation(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, SCAN_DONE_SCRIM_ELEVATION_DP,
+                getResources().getDisplayMetrics()));
     }
 
     private void updateWorkflowSheetElevation(View sheet, boolean expanded) {
@@ -415,13 +432,17 @@ public class MainActivity extends AppCompatActivity {
     // ---------- indikátor kroků ----------
 
     private void updateStepIndicators() {
-        setStepCircle(step1Circle, step1Done, activeStep == 1, "1");
-        setStepCircle(step2Circle, step2Done, activeStep == 2, "2");
-        setStepCircle(step3Circle, step3Done, activeStep == 3, "3");
+        setStepCircle(step1Circle, step1Done, activeStep == 1, false, "1");
+        setStepCircle(step2Circle, step2Done, activeStep == 2, step2Failed, "2");
+        setStepCircle(step3Circle, step3Done, activeStep == 3, false, "3");
     }
 
-    private void setStepCircle(TextView circle, boolean done, boolean active, String number) {
-        if (done) {
+    private void setStepCircle(TextView circle, boolean done, boolean active, boolean failed, String number) {
+        if (failed) {
+            circle.setText(number);
+            circle.setBackgroundResource(R.drawable.step_circle_error);
+            circle.setTextColor(0xFFFFFFFF);
+        } else if (done) {
             circle.setText("✓");
             circle.setBackgroundResource(R.drawable.step_circle_done);
             circle.setTextColor(0xFFFFFFFF);
@@ -585,10 +606,8 @@ public class MainActivity extends AppCompatActivity {
 
         scanDoneScrim.setAlpha(0f);
         scanDoneDialog.setAlpha(0f);
-        if (!isWorkflowSheetExpanded()) {
-            showScanDoneScrimBehindTopBar();
-            scanDoneScrim.animate().alpha(1f).setDuration(200).start();
-        }
+        showScanDoneScrimBehindTopBar();
+        scanDoneScrim.animate().alpha(1f).setDuration(200).start();
         scanDoneDialog.setVisibility(View.VISIBLE);
         scanDoneDialog.animate().alpha(1f).setDuration(200).start();
     }
@@ -599,6 +618,7 @@ public class MainActivity extends AppCompatActivity {
         hideScanDoneNotification(() -> {
             onTagCycleComplete();
             step2Done = false;
+            step2Failed = false;
             step3Done = false;
             updateStepIndicators();
             setActionStatusReady();
@@ -610,6 +630,7 @@ public class MainActivity extends AppCompatActivity {
         scanDoneAwaitingConfirm = false;
         hideScanDoneNotification(() -> {
             step2Done = false;
+            step2Failed = false;
             step3Done = false;
             updateStepIndicators();
             refreshTemplate();
@@ -633,6 +654,7 @@ public class MainActivity extends AppCompatActivity {
             scanDoneDialog.setVisibility(View.GONE);
             scanDoneScrim.setAlpha(1f);
             scanDoneDialog.setAlpha(1f);
+            resetScanDoneScrimElevation();
             if (onHidden != null) onHidden.run();
         }).start();
     }
@@ -652,6 +674,7 @@ public class MainActivity extends AppCompatActivity {
         scanDoneAwaitingConfirm = false;
         activeStep = 0;
         step2Done = false;
+        step2Failed = false;
         step3Done = false;
         updateStepIndicators();
         setActionStatusReady();
@@ -670,12 +693,18 @@ public class MainActivity extends AppCompatActivity {
         workflowRunning = false;
         chainWorkflow = false;
         scanDoneAwaitingConfirm = false;
-        activeStep = 0;
+        activeStep = 2;
         step2Done = false;
+        step2Failed = true;
         step3Done = false;
         updateStepIndicators();
         setActionStatus(status, COLOR_STATUS_ERROR);
-        ui.postDelayed(this::setActionStatusReady, WORKFLOW_DONE_DELAY_MS + 500);
+        ui.postDelayed(() -> {
+            step2Failed = false;
+            activeStep = 0;
+            updateStepIndicators();
+            setActionStatusReady();
+        }, WORKFLOW_DONE_DELAY_MS + 500);
     }
 
     // ---------- šablona EPC ----------
@@ -1288,6 +1317,7 @@ public class MainActivity extends AppCompatActivity {
         workflowRunning = true;
         activeStep = 2;
         step2Done = false;
+        step2Failed = false;
         step3Done = false;
         updateStepIndicators();
         setActionStatus("zapisuji EPC…", COLOR_STATUS_BUSY);
