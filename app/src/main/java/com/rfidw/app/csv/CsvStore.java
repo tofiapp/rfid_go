@@ -20,14 +20,14 @@ import java.util.Set;
  * Výstupní tabulka .CSV.
  *
  * Sloupce:
- *   ID_RFID ; EPC ; TID ; Rok ; TUDU ; výhybka ; čip
+ *   ID_RFID ; EPC ; TID ; rok ; TUDU ; vyhybka ; cip
  *
  * Klíčem je ID_RFID – při zápisu stejného ID_RFID se daný řádek přepíše.
  */
 public class CsvStore {
 
     public static final String[] HEADER = {
-            "ID_RFID", "EPC", "TID", "Rok", "TUDU", "výhybka", "čip"
+            "ID_RFID", "EPC", "TID", "rok", "TUDU", "vyhybka", "cip"
     };
     private static final String SEP = ";";
 

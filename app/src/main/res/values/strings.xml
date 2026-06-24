@@ -37,4 +37,5 @@
     <string name="power_preset_required">Nejprve vyberte výkon (v koleji / v ruce)</string>
     <string name="power_preset_select_status">vyberte režim</string>
     <string name="tudu_select_status">vyberte TUDU</string>
+    <string name="epc_retry_status">načtěte znovu</string>
 </resources>

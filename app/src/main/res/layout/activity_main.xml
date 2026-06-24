@@ -398,6 +398,7 @@
                     android:textSize="14sp"
                     android:textStyle="bold"/>
                 <TextView
+                    android:id="@+id/step1Label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:paddingTop="4dp"
