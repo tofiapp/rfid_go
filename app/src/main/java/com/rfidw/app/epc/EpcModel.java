@@ -8,12 +8,12 @@ import java.util.Locale;
  * Sestavení a rozklad EPC kódu podle šablony RFID Go.
  *
  * EPC = 24 hex znaků (6 wordů, bank EPC, ptr 2, Len 6):
- *  řádek 1 | 4 znaky | Rok            (např. 2026)
+ *  řádek 1 | 4 znaky | rok            (např. 2026)
  *  řádek 2 | 4 znaky | TUDU 1.-4.znak (první 4 znaky vybraného TUDU)
  *  řádek 3 | 2 znaky | TUDU 5.znak    -> ASCII hex (J = 4A)
  *  řádek 4 | 2 znaky | TUDU 6.znak    -> 2-místně (1 = 01)
- *  řádek 5 | 3 znaky | výhybka        -> 3-místně dekadicky (10 = 010)
- *  řádek 6 | 1 znak  | čip            (1-4)
+ *  řádek 5 | 3 znaky | vyhybka        -> 3-místně dekadicky (10 = 010)
+ *  řádek 6 | 1 znak  | cip            (1-4)
  *  řádek 7 | 8 znaků | ID_RFID        -> 8-místně dekadicky (30001 = 00030001)
  *
  *  4 + 4 + 2 + 2 + 3 + 1 + 8 = 24
@@ -23,12 +23,12 @@ public class EpcModel {
     public static final int LENGTH = 24;
 
     // názvy kategorií (řádků šablony) – jdou přepsat v UI
-    public String nameYear      = "Rok";
+    public String nameYear      = "rok";
     public String nameTudu14    = "TUDU (1.-4. znak)";
     public String nameTudu5     = "TUDU (5. znak / ASCII)";
     public String nameTudu6     = "TUDU (6. znak)";
-    public String nameVyhybka   = "výhybka";
-    public String nameCast      = "čip";
+    public String nameVyhybka   = "vyhybka";
+    public String nameCast      = "cip";
     public String nameIdRfid    = "ID_RFID";
 
     // hodnoty

@@ -90,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
             tvCastHintAction, tvCastHintPart,
             tvScanDoneVyhybka, tvScanDoneCast,
             tvLastRecordVyhybka, tvLastRecordCast,
-            step1Circle, step2Circle, step3Circle, step2Label;
+            step1Circle, step2Circle, step3Circle, step1Label, step2Label;
     private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneScrim,
             scanDoneDialog, deleteConfirmDialog, lastRecordBox, card1, topBar;
     private NestedScrollView mainScroll;
@@ -148,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
         colSummaryVyhybka = findViewById(R.id.colSummaryVyhybka);
         step1Circle = findViewById(R.id.step1Circle);
         step2Circle = findViewById(R.id.step2Circle);
+        step1Label = findViewById(R.id.step1Label);
         step2Label = findViewById(R.id.step2Label);
         step3Circle = findViewById(R.id.step3Circle);
         scanDoneScrim = findViewById(R.id.scanDoneScrim);
@@ -188,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
                     "zapisuji EPC…",
                     "zapisuji heslo…",
                     "zamykám…",
-                    "chyba EPC",
+                    getString(R.string.epc_retry_status),
                     "chyba hesla",
                     "chyba zamčení",
                     "nedostupná",
@@ -479,14 +480,16 @@ public class MainActivity extends AppCompatActivity {
     // ---------- indikátor kroků ----------
 
     private void updateStepIndicators() {
-        setStepCircle(step1Circle, step1Done, activeStep == 1, false, "1");
+        boolean step1Error = !step1Done;
+        setStepCircle(step1Circle, step1Done, activeStep == 1 && !step1Error, step1Error, "1");
         boolean modeMissing = step1Done && !isPowerPresetSelected();
         boolean step2Error = step2Failed || modeMissing;
         setStepCircle(step2Circle, step2Done && !modeMissing, activeStep == 2 && !modeMissing,
                 step2Error, "2");
         setStepCircle(step3Circle, step3Done, activeStep == 3, false, "3");
-        step2Label.setTextColor(step2Error ? COLOR_STATUS_ERROR
-                : ContextCompat.getColor(this, R.color.text_muted));
+        int muted = ContextCompat.getColor(this, R.color.text_muted);
+        step1Label.setTextColor(step1Error ? COLOR_STATUS_ERROR : muted);
+        step2Label.setTextColor(step2Error ? COLOR_STATUS_ERROR : muted);
     }
 
     private void setStepCircle(TextView circle, boolean done, boolean active, boolean failed, String number) {
@@ -1197,8 +1200,8 @@ public class MainActivity extends AppCompatActivity {
         } else {
             tvWriteResult.setTextColor(0xFFC62828);
             tvWriteResult.setText("✗ " + r.message);
-            if (chainWorkflow) onWorkflowFailed("chyba EPC");
-            else setActionStatus("chyba EPC", COLOR_STATUS_ERROR);
+            if (chainWorkflow) onWorkflowFailed(getString(R.string.epc_retry_status));
+            else setActionStatus(getString(R.string.epc_retry_status), COLOR_STATUS_ERROR);
         }
     }
 
