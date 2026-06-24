@@ -86,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
             tvCastHintAction, tvCastHintPart,
             tvScanDoneVyhybka, tvScanDoneCast,
             tvLastRecordVyhybka, tvLastRecordCast,
-            step1Circle, step2Circle, step3Circle, step3Label;
+            step1Circle, step2Circle, step3Circle;
     private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneScrim,
             scanDoneDialog, lastRecordBox, card1, topBar;
     private NestedScrollView mainScroll;
@@ -141,7 +141,6 @@ public class MainActivity extends AppCompatActivity {
         step1Circle = findViewById(R.id.step1Circle);
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
-        step3Label = findViewById(R.id.step3Label);
         scanDoneScrim = findViewById(R.id.scanDoneScrim);
         scanDoneDialog = findViewById(R.id.scanDoneDialog);
         tvScanDoneVyhybka = findViewById(R.id.tvScanDoneVyhybka);
