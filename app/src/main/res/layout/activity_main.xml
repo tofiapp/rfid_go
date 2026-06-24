@@ -4,12 +4,66 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Vyjížděcí panel: pokročilé (EPC náhled, karty 2–5) – nízká elevation, překryje jen spodní oblast -->
+    <LinearLayout
+        android:id="@+id/workflowSheet"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bottom_sheet_bg"
+        android:elevation="20dp"
+        android:orientation="vertical"
+        app:behavior_hideable="false"
+        app:behavior_peekHeight="56dp"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+        <LinearLayout
+            android:id="@+id/workflowSheetHandle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingTop="10dp"
+            android:paddingBottom="8dp">
+
+            <View
+                android:layout_width="40dp"
+                android:layout_height="4dp"
+                android:layout_marginBottom="6dp"
+                android:background="#B0BEC5"/>
+
+            <TextView
+                android:id="@+id/tvWorkflowSheetTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/workflow_sheet_title"
+                android:textColor="@color/primary_dark"
+                android:textSize="14sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/workflowSheetContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <include layout="@layout/bottom_sheet_workflow"/>
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- Hlavní obsah (karta TUDU + nápověda) – zůstává nad vyjížděcím panelem -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/mainScroll"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
         android:clipToPadding="false"
-        android:fillViewport="true"
+        android:elevation="24dp"
         android:paddingBottom="72dp">
 
         <LinearLayout
@@ -213,58 +267,6 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Vyjížděcí panel: pokročilé (EPC náhled, karty 2–5) -->
-    <LinearLayout
-        android:id="@+id/workflowSheet"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/bottom_sheet_bg"
-        android:elevation="20dp"
-        android:orientation="vertical"
-        app:behavior_hideable="false"
-        app:behavior_peekHeight="56dp"
-        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
-
-        <LinearLayout
-            android:id="@+id/workflowSheetHandle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:paddingTop="10dp"
-            android:paddingBottom="8dp">
-
-            <View
-                android:layout_width="40dp"
-                android:layout_height="4dp"
-                android:layout_marginBottom="6dp"
-                android:background="#B0BEC5"/>
-
-            <TextView
-                android:id="@+id/tvWorkflowSheetTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/workflow_sheet_title"
-                android:textColor="@color/primary_dark"
-                android:textSize="14sp"
-                android:textStyle="bold"/>
-        </LinearLayout>
-
-        <FrameLayout
-            android:id="@+id/workflowSheetContent"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone">
-
-            <include layout="@layout/bottom_sheet_workflow"/>
-
-        </FrameLayout>
-
-    </LinearLayout>
-
     <!-- Poslední záznam nad spodním panelem -->
     <LinearLayout
         android:id="@+id/lastRecordBox"
@@ -280,13 +282,33 @@
         android:padding="12dp"
         android:visibility="gone">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/last_record_label"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp"
-            android:textStyle="bold"/>
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/last_record_label"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp"
+                android:textStyle="bold"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDeleteLastRecord"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/btn_delete_short"
+                android:textSize="12sp"/>
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -342,6 +364,7 @@
         android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="top"
         android:background="@color/bg"
         android:elevation="40dp"
         android:orientation="vertical"
@@ -358,7 +381,7 @@
             <ImageView
                 android:id="@+id/ivAppLogo"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="34dp"
                 android:adjustViewBounds="true"
                 android:contentDescription="@string/app_name"
                 android:scaleType="fitCenter"

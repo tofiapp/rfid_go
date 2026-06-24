@@ -76,6 +76,14 @@ public class CsvStore {
         save();
     }
 
+    /** Vrátí posledních {@code max} vložených řádků (chronologicky od nejstaršího). */
+    public List<Row> getLastRows(int max) {
+        List<Row> all = getRows();
+        if (max <= 0 || all.isEmpty()) return new ArrayList<>();
+        int from = Math.max(0, all.size() - max);
+        return new ArrayList<>(all.subList(from, all.size()));
+    }
+
     /** Odstraní poslední vložený řádek a uloží na disk. Vrátí smazaný řádek nebo null. */
     public synchronized Row removeLast() {
         if (rows.isEmpty()) return null;

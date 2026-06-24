@@ -7,9 +7,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
-import android.animation.ValueAnimator;
 import android.graphics.Typeface;
 import android.provider.OpenableColumns;
 import android.text.Editable;
@@ -94,7 +91,6 @@ public class MainActivity extends AppCompatActivity {
             scanDoneDialog, lastRecordBox, card1, topBar;
     private NestedScrollView mainScroll;
     private BottomSheetBehavior<View> workflowBehavior;
-    private AnimatorSet step3GlowAnimator;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
 
@@ -383,9 +379,7 @@ public class MainActivity extends AppCompatActivity {
     private void updateStepIndicators() {
         setStepCircle(step1Circle, step1Done, activeStep == 1, "1");
         setStepCircle(step2Circle, step2Done, activeStep == 2, "2");
-        if (!scanDoneAwaitingConfirm) {
-            setStepCircle(step3Circle, step3Done, activeStep == 3, "3");
-        }
+        setStepCircle(step3Circle, step3Done, activeStep == 3, "3");
     }
 
     private void setStepCircle(TextView circle, boolean done, boolean active, String number) {
@@ -550,7 +544,6 @@ public class MainActivity extends AppCompatActivity {
 
         step3Done = true;
         updateStepIndicators();
-        startStep3Glow();
 
         scanDoneScrim.setAlpha(0f);
         scanDoneDialog.setAlpha(0f);
@@ -562,40 +555,6 @@ public class MainActivity extends AppCompatActivity {
         scanDoneDialog.setVisibility(View.VISIBLE);
         scanDoneScrim.animate().alpha(1f).setDuration(200).start();
         scanDoneDialog.animate().alpha(1f).setDuration(200).start();
-    }
-
-    private void startStep3Glow() {
-        stopStep3Glow();
-        step3Circle.setBackgroundResource(R.drawable.step_circle_done_glow);
-        step3Circle.setText("✓");
-        step3Circle.setTextColor(0xFFFFFFFF);
-
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(step3Circle, View.SCALE_X, 1f, 1.12f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(step3Circle, View.SCALE_Y, 1f, 1.12f);
-        scaleX.setRepeatMode(ValueAnimator.REVERSE);
-        scaleY.setRepeatMode(ValueAnimator.REVERSE);
-        scaleX.setRepeatCount(ValueAnimator.INFINITE);
-        scaleY.setRepeatCount(ValueAnimator.INFINITE);
-        scaleX.setDuration(900);
-        scaleY.setDuration(900);
-
-        step3GlowAnimator = new AnimatorSet();
-        step3GlowAnimator.playTogether(scaleX, scaleY);
-        step3GlowAnimator.start();
-
-        step3Label.setTextColor(ContextCompat.getColor(this, R.color.ok));
-        step3Label.setTypeface(null, Typeface.BOLD);
-    }
-
-    private void stopStep3Glow() {
-        if (step3GlowAnimator != null) {
-            step3GlowAnimator.cancel();
-            step3GlowAnimator = null;
-        }
-        step3Circle.setScaleX(1f);
-        step3Circle.setScaleY(1f);
-        step3Label.setTextColor(ContextCompat.getColor(this, R.color.text_muted));
-        step3Label.setTypeface(null, Typeface.NORMAL);
     }
 
     private void onScanDoneContinue() {
@@ -634,7 +593,6 @@ public class MainActivity extends AppCompatActivity {
         }
         scanDoneScrim.animate().alpha(0f).setDuration(150).start();
         scanDoneDialog.animate().alpha(0f).setDuration(150).withEndAction(() -> {
-            stopStep3Glow();
             scanDoneScrim.setVisibility(View.GONE);
             scanDoneDialog.setVisibility(View.GONE);
             scanDoneScrim.setAlpha(1f);
@@ -789,8 +747,14 @@ public class MainActivity extends AppCompatActivity {
         RecyclerView rv = findViewById(R.id.rvCsv);
         rv.setLayoutManager(new LinearLayoutManager(this));
         rv.setAdapter(csvAdapter);
-        csvAdapter.setData(csvStore.getRows());
+        refreshCsvTable();
         updateLastRecordPreview();
+    }
+
+    private void refreshCsvTable() {
+        if (csvAdapter != null && csvStore != null) {
+            csvAdapter.setData(csvStore.getLastRows(5));
+        }
     }
 
     // ---------- listenery ----------
@@ -804,6 +768,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnLock).setOnClickListener(v -> doLock());
         findViewById(R.id.btnExportCsv).setOnClickListener(v -> exportCsv());
         findViewById(R.id.btnClearCsv).setOnClickListener(v -> deleteLastCsvRow());
+        findViewById(R.id.btnDeleteLastRecord).setOnClickListener(v -> deleteLastCsvRow());
         findViewById(R.id.btnScanDoneContinue).setOnClickListener(v -> onScanDoneContinue());
         findViewById(R.id.btnScanDoneRetry).setOnClickListener(v -> onScanDoneRetry());
     }
@@ -924,7 +889,7 @@ public class MainActivity extends AppCompatActivity {
             toast("Tabulka je prázdná");
             return;
         }
-        csvAdapter.setData(csvStore.getRows());
+        refreshCsvTable();
         restoreSelectionFromRow(last);
         updateLastRecordPreview();
         toast("Poslední záznam vymazán");
@@ -1110,7 +1075,7 @@ public class MainActivity extends AppCompatActivity {
             row.vyhybka = d.vyhybka;
             row.cast = d.cast;
             csvStore.upsert(row);
-            csvAdapter.setData(csvStore.getRows());
+            refreshCsvTable();
             updateLastRecordPreview();
         } catch (Exception e) {
             toast("CSV: " + e.getMessage());
@@ -1288,7 +1253,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        stopStep3Glow();
         super.onDestroy();
         io.execute(uhf::free);
     }
