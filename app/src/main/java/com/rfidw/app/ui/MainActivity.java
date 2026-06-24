@@ -177,6 +177,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupTopBarInsets() {
+        tvReaderStatus.post(() -> {
+            float statusMinWidth = tvReaderStatus.getPaint().measureText(
+                    getString(R.string.power_preset_select_status));
+            tvReaderStatus.setMinWidth((int) Math.ceil(statusMinWidth));
+        });
         topBar.post(() -> {
             int topInset = topBar.getHeight();
             int gap = (int) TypedValue.applyDimension(

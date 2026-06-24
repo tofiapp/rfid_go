@@ -38,7 +38,7 @@ public class Tudu {
 
         @Override
         public String toString() {
-            return "Výhybka " + cislo + " (části " + castMin + "-" + castMax + ")";
+            return "Výhybka " + cislo + " (čipy " + castMin + "-" + castMax + ")";
         }
     }
 }
