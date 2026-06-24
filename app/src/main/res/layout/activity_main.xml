@@ -319,17 +319,36 @@
                 android:scaleType="fitCenter"
                 android:src="@drawable/app_logo_header"/>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnPowerPreset"
-                style="@style/Widget.Material3.Button.TonalButton"
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/powerPresetGroup"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:minHeight="32dp"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:text="@string/power_preset_koleji"
-                android:textSize="11sp"/>
+                app:singleSelection="true"
+                app:selectionRequired="false">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPowerPresetKoleji"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="32dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:text="@string/power_preset_koleji"
+                    android:textSize="11sp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPowerPresetRuce"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="32dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:text="@string/power_preset_ruce"
+                    android:textSize="11sp"/>
+            </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <View
                 android:layout_width="0dp"
