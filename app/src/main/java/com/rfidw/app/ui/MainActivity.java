@@ -65,7 +65,6 @@ public class MainActivity extends AppCompatActivity {
     private static final int WORKFLOW_DONE_DELAY_MS = 1500;
     private static final int POWER_PRESET_KOLEJI_DBM = 14;
     private static final int POWER_PRESET_RUCE_DBM = 1;
-    private static final String DEFAULT_ACCESS_PWD = "00000000";
 
     private final UhfManager uhf = new UhfManager();
     private final EpcModel epc = new EpcModel();
@@ -114,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
         setupTopBarInsets();
         setupWorkflowSheet();
         setupCollapsibles();
+        collapseWorkflowCards();
         setupTemplateRows();
         setupCsv();
         setupListeners();
@@ -317,6 +317,13 @@ public class MainActivity extends AppCompatActivity {
         body.setVisibility(View.GONE);
         String t = header.getText().toString();
         if (t.startsWith("▾")) header.setText("▸" + t.substring(1));
+    }
+
+    private void collapseWorkflowCards() {
+        collapseCard(R.id.header2, R.id.body2);
+        collapseCard(R.id.header3, R.id.body3);
+        collapseCard(R.id.header4, R.id.body4);
+        collapseCard(R.id.header5, R.id.body5);
     }
 
     private void scrollToCard1() {
@@ -1116,11 +1123,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void resetAccessPasswordFields() {
-        etAccessPwd.setText(DEFAULT_ACCESS_PWD);
-        etPwdAccess.setText(DEFAULT_ACCESS_PWD);
-    }
-
     private void onWriteDone(UhfManager.WriteResult r, String writtenEpc) {
         if (r.success) {
             if (r.presetPasswordUsed != null) {
@@ -1289,6 +1291,14 @@ public class MainActivity extends AppCompatActivity {
         refreshTemplate();
         updateSummary1();
         resetAccessPasswordFields();
+    }
+
+    /** Vrátí access hesla na výchozí hodnotu pro další tag (preset se zkusí automaticky). */
+    private void resetAccessPasswordFields() {
+        String def = UhfManager.DEFAULT_ACCESS_PASSWORD;
+        etAccessPwd.setText(def);
+        etPwdAccess.setText(def);
+        etLockAccessPwd.setText(def);
     }
 
     private void advanceCastAndVyhybka() {
