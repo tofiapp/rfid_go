@@ -344,11 +344,6 @@
                     android:paddingEnd="8dp"
                     android:text="@string/power_preset_koleji"
                     android:textSize="11sp"
-                    app:icon="@drawable/ic_power_koleji"
-                    app:iconGravity="textStart"
-                    app:iconPadding="4dp"
-                    app:iconSize="16dp"
-                    app:iconTint="@color/power_preset_icon_tint"
                     app:strokeColor="@color/power_preset_stroke"/>
 
                 <com.google.android.material.button.MaterialButton
@@ -361,11 +356,6 @@
                     android:paddingEnd="8dp"
                     android:text="@string/power_preset_ruce"
                     android:textSize="11sp"
-                    app:icon="@drawable/ic_power_ruce"
-                    app:iconGravity="textStart"
-                    app:iconPadding="4dp"
-                    app:iconSize="16dp"
-                    app:iconTint="@color/power_preset_icon_tint"
                     app:strokeColor="@color/power_preset_stroke"/>
             </com.google.android.material.button.MaterialButtonToggleGroup>
 

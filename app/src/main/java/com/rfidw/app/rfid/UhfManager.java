@@ -27,6 +27,7 @@ public class UhfManager {
     public static final int ACCESS_PWD_LEN = 2;
 
     public static final String DEFAULT_LOCK_CODE = "008020";
+    public static final String DEFAULT_ACCESS_PASSWORD = "00000000";
 
     /** @deprecated použijte {@link #PRESET_ACCESS_PASSWORDS} */
     @Deprecated
@@ -278,7 +279,7 @@ public class UhfManager {
     }
 
     private static String normalizePwd(String pwd) {
-        if (pwd == null || pwd.isEmpty()) return "00000000";
+        if (pwd == null || pwd.isEmpty()) return DEFAULT_ACCESS_PASSWORD;
         String s = pwd.trim().toUpperCase();
         return s.length() > 8 ? s.substring(0, 8) : s;
     }

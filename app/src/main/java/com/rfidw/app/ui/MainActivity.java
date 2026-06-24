@@ -113,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
         setupTopBarInsets();
         setupWorkflowSheet();
         setupCollapsibles();
+        collapseWorkflowCards();
         setupTemplateRows();
         setupCsv();
         setupListeners();
@@ -236,7 +237,6 @@ public class MainActivity extends AppCompatActivity {
                 } else if (expanded) {
                     workflowContent.setVisibility(View.VISIBLE);
                     workflowContent.setAlpha(1f);
-                    collapseWorkflowCards();
                 }
                 updateWorkflowSheetOverlay(bottomSheet, expanded);
             }
@@ -1275,7 +1275,6 @@ public class MainActivity extends AppCompatActivity {
             csvStore.upsert(row);
             persistCsvAsync();
             refreshCsvTable();
-            updateLastRecordPreview();
         } catch (Exception e) {
             toast("CSV: " + e.getMessage());
         }
@@ -1288,6 +1287,16 @@ public class MainActivity extends AppCompatActivity {
         advanceCastAndVyhybka();
         refreshTemplate();
         updateSummary1();
+        resetAccessPasswordFields();
+        updateLastRecordPreview();
+    }
+
+    /** Vrátí access hesla na výchozí hodnotu pro další tag (preset se zkusí automaticky). */
+    private void resetAccessPasswordFields() {
+        String def = UhfManager.DEFAULT_ACCESS_PASSWORD;
+        etAccessPwd.setText(def);
+        etPwdAccess.setText(def);
+        etLockAccessPwd.setText(def);
     }
 
     private void advanceCastAndVyhybka() {
