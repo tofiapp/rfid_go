@@ -10,7 +10,8 @@
     <string name="epc_preview_label">EPC náhled</string>
     <string name="tudu_search_hint">Hledat TUDU…</string>
     <string name="cast_hint_prefix">Načtěte\u00A0</string>
-    <string name="cast_hint_mid">\u00A0čip výhybky\u00A0</string>
+    <string name="cast_hint_chip">čip\u00A0</string>
+    <string name="cast_hint_comma_vyhybky">,\u00A0výhybky\u00A0</string>
     <string name="cast_part_1">jazyk</string>
     <string name="cast_part_2">levé rameno</string>
     <string name="cast_part_3">pravé rameno</string>
@@ -22,7 +23,7 @@
     <string name="last_record_label">poslední záznam</string>
     <string name="last_record_vyhybka_prefix">výhybka\u00A0</string>
     <string name="last_record_cast_prefix">čip\u00A0</string>
-    <string name="vyhybka_picker_prefix">Výhybka\u00A0</string>
+    <string name="vyhybka_picker_prefix">výhybka\u00A0</string>
     <string name="vyhybka_picker_missing_sep">\u00A0·\u00A0</string>
     <string name="vyhybka_picker_missing_prefix">chybí\u00A0</string>
     <string name="vyhybka_picker_missing_one">\u00A0čip</string>

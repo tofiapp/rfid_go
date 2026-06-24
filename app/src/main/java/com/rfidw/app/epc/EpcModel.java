@@ -12,8 +12,8 @@ import java.util.Locale;
  *  řádek 2 | 4 znaky | TUDU 1.-4.znak (první 4 znaky vybraného TUDU)
  *  řádek 3 | 2 znaky | TUDU 5.znak    -> ASCII hex (J = 4A)
  *  řádek 4 | 2 znaky | TUDU 6.znak    -> 2-místně (1 = 01)
- *  řádek 5 | 3 znaky | Výhybka        -> 3-místně dekadicky (10 = 010)
- *  řádek 6 | 1 znak  | čip výhybky    (1-4)
+ *  řádek 5 | 3 znaky | výhybka        -> 3-místně dekadicky (10 = 010)
+ *  řádek 6 | 1 znak  | čip            (1-4)
  *  řádek 7 | 8 znaků | ID_RFID        -> 8-místně dekadicky (30001 = 00030001)
  *
  *  4 + 4 + 2 + 2 + 3 + 1 + 8 = 24
@@ -27,8 +27,8 @@ public class EpcModel {
     public String nameTudu14    = "TUDU (1.-4. znak)";
     public String nameTudu5     = "TUDU (5. znak / ASCII)";
     public String nameTudu6     = "TUDU (6. znak)";
-    public String nameVyhybka   = "Výhybka";
-    public String nameCast      = "čip výhybky";
+    public String nameVyhybka   = "výhybka";
+    public String nameCast      = "čip";
     public String nameIdRfid    = "ID_RFID";
 
     // hodnoty

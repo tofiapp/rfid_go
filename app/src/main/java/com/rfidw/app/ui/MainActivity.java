@@ -90,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
             tvCastHintAction, tvCastHintPart,
             tvScanDoneVyhybka, tvScanDoneCast,
             tvLastRecordVyhybka, tvLastRecordCast,
-            step1Circle, step2Circle, step3Circle;
+            step1Circle, step2Circle, step3Circle, step2Label;
     private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneScrim,
             scanDoneDialog, lastRecordBox, card1, topBar;
     private NestedScrollView mainScroll;
@@ -125,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
         updateStepIndicators();
         updateLastRecordPreview();
 
-        setActionStatus(getString(R.string.power_preset_select_status), COLOR_STATUS_BUSY);
+        setActionStatus(getString(R.string.power_preset_select_status), COLOR_STATUS_ERROR);
     }
 
     private void bindViews() {
@@ -148,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
         colSummaryVyhybka = findViewById(R.id.colSummaryVyhybka);
         step1Circle = findViewById(R.id.step1Circle);
         step2Circle = findViewById(R.id.step2Circle);
+        step2Label = findViewById(R.id.step2Label);
         step3Circle = findViewById(R.id.step3Circle);
         scanDoneScrim = findViewById(R.id.scanDoneScrim);
         scanDoneDialog = findViewById(R.id.scanDoneDialog);
@@ -178,9 +179,23 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupTopBarInsets() {
         tvReaderStatus.post(() -> {
-            float statusMinWidth = tvReaderStatus.getPaint().measureText(
-                    getString(R.string.power_preset_select_status));
-            tvReaderStatus.setMinWidth((int) Math.ceil(statusMinWidth));
+            float maxWidth = 0f;
+            String[] statusTexts = {
+                    getString(R.string.power_preset_select_status),
+                    "připraveno",
+                    "zapisuji EPC…",
+                    "zapisuji heslo…",
+                    "zamykám…",
+                    "chyba EPC",
+                    "chyba hesla",
+                    "chyba zamčení",
+                    "nedostupná",
+                    "inicializuji…"
+            };
+            for (String text : statusTexts) {
+                maxWidth = Math.max(maxWidth, tvReaderStatus.getPaint().measureText(text));
+            }
+            tvReaderStatus.setMinWidth((int) Math.ceil(maxWidth));
         });
         topBar.post(() -> {
             int topInset = topBar.getHeight();
@@ -410,7 +425,7 @@ public class MainActivity extends AppCompatActivity {
 
         listView.setOnItemClickListener((parent, v, position, id) -> {
             if (isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position))) {
-                toast("Výhybka je již zapsaná v CSV");
+                toast("výhybka je již zapsaná v CSV");
                 return;
             }
             selectVyhybka(vyhybky.get(position), true);
@@ -447,8 +462,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateStepIndicators() {
         setStepCircle(step1Circle, step1Done, activeStep == 1, false, "1");
-        setStepCircle(step2Circle, step2Done, activeStep == 2, step2Failed, "2");
+        boolean modeMissing = !isPowerPresetSelected();
+        boolean step2Error = step2Failed || modeMissing;
+        setStepCircle(step2Circle, step2Done && !modeMissing, activeStep == 2 && !modeMissing,
+                step2Error, "2");
         setStepCircle(step3Circle, step3Done, activeStep == 3, false, "3");
+        step2Label.setTextColor(step2Error ? COLOR_STATUS_ERROR
+                : ContextCompat.getColor(this, R.color.text_muted));
     }
 
     private void setStepCircle(TextView circle, boolean done, boolean active, boolean failed, String number) {
@@ -567,16 +587,18 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         String prefix = getString(R.string.cast_hint_prefix);
-        String mid = getString(R.string.cast_hint_mid);
+        String chipLabel = getString(R.string.cast_hint_chip);
+        String commaVyhybky = getString(R.string.cast_hint_comma_vyhybky);
         String castStr = String.valueOf(epc.cast);
         String vyhybkaStr = String.valueOf(epc.vyhybka);
-        SpannableString span = new SpannableString(prefix + castStr + mid + vyhybkaStr);
+        SpannableString span = new SpannableString(
+                prefix + chipLabel + castStr + commaVyhybky + vyhybkaStr);
 
-        int castStart = prefix.length();
+        int castStart = prefix.length() + chipLabel.length();
         int castEnd = castStart + castStr.length();
         applyCastAccent(span, castStart, castEnd);
 
-        int vyhStart = castEnd + mid.length();
+        int vyhStart = castEnd + commaVyhybky.length();
         int vyhEnd = vyhStart + vyhybkaStr.length();
         applyVyhybkaAccent(span, vyhStart, vyhEnd);
 
@@ -700,6 +722,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setActionStatusReady() {
+        if (!isPowerPresetSelected()) {
+            setActionStatus(getString(R.string.power_preset_select_status), COLOR_STATUS_ERROR);
+            updateStepIndicators();
+            return;
+        }
         setActionStatus("připraveno", COLOR_STATUS_READY);
     }
 
@@ -1034,10 +1061,12 @@ public class MainActivity extends AppCompatActivity {
         int power = inKoleji ? POWER_PRESET_KOLEJI_DBM : POWER_PRESET_RUCE_DBM;
         etPower.setText(String.valueOf(power));
         powerPresetGroup.setSelectionRequired(true);
+        updateStepIndicators();
         if (!uhf.isReady()) {
             initReaderAsync();
         } else {
             applyPowerValue(power, false);
+            setActionStatusReady();
         }
     }
 

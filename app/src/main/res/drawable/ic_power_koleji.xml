@@ -4,7 +4,11 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+  <!-- Koleje shora – dvě kolejnice a pražce -->
   <path
       android:fillColor="#FFFFFFFF"
-      android:pathData="M4,16h16v1.5H4V16zM4,13h16v1.5H4V13zM6,10h2v3H6v-3zM11,10h2v3h-2v-3zM16,10h2v3h-2v-3zM3,18.5h18V20H3v-1.5z"/>
+      android:pathData="M2,9.5h20v1.8H2zM2,14.7h20v1.8H2z"/>
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M5,9.5v7h1.6V9.5zM9.2,9.5v7h1.6V9.5zM13.4,9.5v7h1.6V9.5zM17.6,9.5v7h1.6V9.5z"/>
 </vector>
