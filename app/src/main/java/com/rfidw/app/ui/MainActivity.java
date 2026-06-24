@@ -35,6 +35,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.button.MaterialButton;
 
 import com.rfidw.app.R;
 import com.rfidw.app.csv.CsvStore;
@@ -62,6 +63,8 @@ public class MainActivity extends AppCompatActivity {
     private static final int COLOR_STATUS_BUSY = 0xFF5F6A76;
     private static final int COLOR_STATUS_ERROR = 0xFFC62828;
     private static final int WORKFLOW_DONE_DELAY_MS = 1500;
+    private static final int POWER_PRESET_KOLEJI_DBM = 14;
+    private static final int POWER_PRESET_RUCE_DBM = 1;
 
     private final UhfManager uhf = new UhfManager();
     private final EpcModel epc = new EpcModel();
@@ -94,6 +97,8 @@ public class MainActivity extends AppCompatActivity {
     private BottomSheetBehavior<View> workflowBehavior;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
+    private MaterialButton btnPowerPreset;
+    private boolean powerPresetInKoleji = true;
 
     // řádky šablony (kontejnery z include)
     private View[] rows = new View[7];
@@ -158,6 +163,7 @@ public class MainActivity extends AppCompatActivity {
         etPwdNew = findViewById(R.id.etPwdNew);
         etLockAccessPwd = findViewById(R.id.etLockAccessPwd);
         cbAutoCsv = findViewById(R.id.cbAutoCsv);
+        btnPowerPreset = findViewById(R.id.btnPowerPreset);
 
         rows[0] = findViewById(R.id.row1);
         rows[1] = findViewById(R.id.row2);
@@ -847,6 +853,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupListeners() {
         findViewById(R.id.btnPickSource).setOnClickListener(v -> pickSourceFile());
 
+        btnPowerPreset.setOnClickListener(v -> togglePowerPreset());
         findViewById(R.id.btnApplyPower).setOnClickListener(v -> applyPower());
         findViewById(R.id.btnWrite).setOnClickListener(v -> doWrite());
         findViewById(R.id.btnWritePwd).setOnClickListener(v -> doWritePassword());
@@ -988,11 +995,31 @@ public class MainActivity extends AppCompatActivity {
     // ---------- zápis EPC ----------
 
     private void applyPower() {
-        int p = parseInt(etPower.getText().toString().trim(), 30);
+        int p = parseInt(etPower.getText().toString().trim(), POWER_PRESET_KOLEJI_DBM);
+        applyPowerValue(p, true);
+    }
+
+    private void applyPowerValue(int dbm, boolean showToast) {
         io.execute(() -> {
-            boolean ok = uhf.setPower(p);
-            ui.post(() -> toast(ok ? ("Výkon nastaven na " + p + " dBm") : "Nastavení výkonu selhalo"));
+            boolean ok = uhf.setPower(dbm);
+            if (showToast) {
+                ui.post(() -> toast(ok ? ("Výkon nastaven na " + dbm + " dBm") : "Nastavení výkonu selhalo"));
+            }
         });
+    }
+
+    private void togglePowerPreset() {
+        setPowerPreset(!powerPresetInKoleji, true);
+    }
+
+    private void setPowerPreset(boolean inKoleji, boolean applyToReader) {
+        powerPresetInKoleji = inKoleji;
+        int power = inKoleji ? POWER_PRESET_KOLEJI_DBM : POWER_PRESET_RUCE_DBM;
+        btnPowerPreset.setText(inKoleji ? R.string.power_preset_koleji : R.string.power_preset_ruce);
+        etPower.setText(String.valueOf(power));
+        if (applyToReader && uhf.isReady()) {
+            applyPowerValue(power, false);
+        }
     }
 
     private void doWrite() {
@@ -1331,13 +1358,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void initReaderAsync() {
         setActionStatus("inicializuji…", COLOR_STATUS_BUSY);
+        setPowerPreset(true, false);
         io.execute(() -> {
             boolean ok = uhf.init(this);
-            int power = ok ? uhf.getPower() : -1;
             ui.post(() -> {
                 if (ok) {
                     setActionStatusReady();
-                    if (power > 0) etPower.setText(String.valueOf(power));
+                    setPowerPreset(true, true);
                 } else {
                     setActionStatus("nedostupná", COLOR_STATUS_ERROR);
                 }
