@@ -355,15 +355,11 @@ public class MainActivity extends AppCompatActivity {
         }
         final String tuduCode = currentTudu.code;
         final List<Tudu.Vyhybka> vyhybky = currentTudu.vyhybky;
-        List<String> labels = new ArrayList<>();
-        for (Tudu.Vyhybka v : vyhybky) {
-            labels.add("Výhybka " + v.cislo);
-        }
 
         ListView listView = new ListView(this);
         listView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
-                android.R.layout.simple_list_item_single_choice, labels) {
+        ArrayAdapter<Tudu.Vyhybka> adapter = new ArrayAdapter<Tudu.Vyhybka>(this,
+                android.R.layout.simple_list_item_single_choice, vyhybky) {
             @Override
             public boolean isEnabled(int position) {
                 return !isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position));
@@ -374,7 +370,9 @@ public class MainActivity extends AppCompatActivity {
                     android.view.ViewGroup parent) {
                 android.view.View view = super.getView(position, convertView, parent);
                 TextView tv = (TextView) view;
-                boolean done = isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position));
+                Tudu.Vyhybka v = vyhybky.get(position);
+                boolean done = isVyhybkaCompleteInCsv(tuduCode, v);
+                tv.setText(formatVyhybkaPickerLabel(tuduCode, v));
                 if (done) {
                     tv.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.text_muted));
                     tv.setAlpha(0.45f);
@@ -1238,11 +1236,57 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isVyhybkaCompleteInCsv(String tuduCode, Tudu.Vyhybka v) {
+        return countMissingCasts(tuduCode, v) == 0;
+    }
+
+    private int countMissingCasts(String tuduCode, Tudu.Vyhybka v) {
         Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
+        int missing = 0;
         for (int c = v.castMin; c <= v.castMax; c++) {
-            if (!written.contains(c)) return false;
+            if (!written.contains(c)) missing++;
         }
-        return true;
+        return missing;
+    }
+
+    private int countWrittenCasts(String tuduCode, Tudu.Vyhybka v) {
+        Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
+        int count = 0;
+        for (int c = v.castMin; c <= v.castMax; c++) {
+            if (written.contains(c)) count++;
+        }
+        return count;
+    }
+
+    private boolean isVyhybkaPartialInCsv(String tuduCode, Tudu.Vyhybka v) {
+        int written = countWrittenCasts(tuduCode, v);
+        return written > 0 && written < v.castMax - v.castMin + 1;
+    }
+
+    private CharSequence formatVyhybkaPickerLabel(String tuduCode, Tudu.Vyhybka v) {
+        String prefix = getString(R.string.vyhybka_picker_prefix);
+        String cisloStr = String.valueOf(v.cislo);
+        if (!isVyhybkaPartialInCsv(tuduCode, v)) {
+            return prefix + cisloStr;
+        }
+
+        int missing = countMissingCasts(tuduCode, v);
+        String missingStr = String.valueOf(missing);
+        String sep = getString(R.string.vyhybka_picker_missing_sep);
+        String missingPrefix = getString(R.string.vyhybka_picker_missing_prefix);
+        String missingSuffix = missingCastSuffix(missing);
+        String full = prefix + cisloStr + sep + missingPrefix + missingStr + missingSuffix;
+
+        SpannableString span = new SpannableString(full);
+        int numStart = prefix.length() + cisloStr.length() + sep.length() + missingPrefix.length();
+        int numEnd = numStart + missingStr.length();
+        applyCastAccent(span, numStart, numEnd);
+        return span;
+    }
+
+    private String missingCastSuffix(int count) {
+        if (count == 1) return getString(R.string.vyhybka_picker_missing_one);
+        if (count >= 2 && count <= 4) return getString(R.string.vyhybka_picker_missing_few);
+        return getString(R.string.vyhybka_picker_missing_many);
     }
 
     private int firstMissingCast(String tuduCode, Tudu.Vyhybka v) {
