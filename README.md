@@ -62,7 +62,7 @@ Příklad: `1501J1`, výhybka `10`, část `1`, ID `30001` →
 - Pod šablonou je rozhraní zápisu: `bank EPC`, `ptr 2`, `Len 6`, **Access pwd** (default `00000000`) a výkon v dBm.
 - Tlačítko **ZAPSAT EPC** přepíše EPC tagu v dosahu.
 - Po úspěšném zápisu se zobrazí původní EPC a TID tagu.
-- Při selhání zápisu s uživatelským heslem se automaticky zkusí **preset heslo** `11223344`.
+- Při selhání zápisu s uživatelským heslem se automaticky zkusí **preset hesla** `11223344`, `11112222` (třetí doplníte později).
 - Po dokončení celého cyklu (viz níže) se automaticky:
   - `ID_RFID += 1` (hodnota se ukládá do aplikace),
   - posune **část výhybky** o 1; po překročení maxima se přepne na **další nedokončenou výhybku** v pořadí daného TUDU.
@@ -91,7 +91,7 @@ Soubor je uložen v `Android/data/com.rfidw.app/files/rfid_go_output.csv`.
 - Pole **ACCESS PWD** – aktuální heslo tagu (default `00000000`)
 - Pole **NEW PWD** – nové heslo (8 hex znaků)
 - Tlačítko **ZAPSAT HESLO** zapíše nové access heslo na tag v dosahu
-- Stejný fallback na preset heslo `11223344` jako u zápisu EPC
+- Stejný fallback na preset hesla jako u zápisu EPC
 
 ### 5. Zamčení tagu
 - Pole **NEW ACCESS PWD** – heslo pro zamčení (po zápisu hesla se doplní automaticky)
