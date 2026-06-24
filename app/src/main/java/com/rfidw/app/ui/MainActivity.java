@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
             tvLastRecordVyhybka, tvLastRecordCast,
             step1Circle, step2Circle, step3Circle, step2Label;
     private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneScrim,
-            scanDoneDialog, lastRecordBox, card1, topBar;
+            scanDoneDialog, deleteConfirmDialog, lastRecordBox, card1, topBar;
     private NestedScrollView mainScroll;
     private BottomSheetBehavior<View> workflowBehavior;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
@@ -152,6 +152,7 @@ public class MainActivity extends AppCompatActivity {
         step3Circle = findViewById(R.id.step3Circle);
         scanDoneScrim = findViewById(R.id.scanDoneScrim);
         scanDoneDialog = findViewById(R.id.scanDoneDialog);
+        deleteConfirmDialog = findViewById(R.id.deleteConfirmDialog);
         tvScanDoneVyhybka = findViewById(R.id.tvScanDoneVyhybka);
         tvScanDoneCast = findViewById(R.id.tvScanDoneCast);
         lastRecordBox = findViewById(R.id.lastRecordBox);
@@ -268,12 +269,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateWorkflowSheetOverlay(View sheet, boolean expanded) {
         updateWorkflowSheetElevation(sheet, expanded);
-        if (scanDoneDialog.getVisibility() == View.VISIBLE) {
-            showScanDoneScrimBehindTopBar();
+        if (isOverlayDialogVisible()) {
+            showOverlayScrimBehindTopBar();
         }
     }
 
-    private void showScanDoneScrimBehindTopBar() {
+    private boolean isOverlayDialogVisible() {
+        return scanDoneDialog.getVisibility() == View.VISIBLE
+                || deleteConfirmDialog.getVisibility() == View.VISIBLE;
+    }
+
+    private void showOverlayScrimBehindTopBar() {
         ViewGroup.MarginLayoutParams scrimLp =
                 (ViewGroup.MarginLayoutParams) scanDoneScrim.getLayoutParams();
         scrimLp.topMargin = topBar.getHeight();
@@ -285,7 +291,7 @@ public class MainActivity extends AppCompatActivity {
         scanDoneScrim.setAlpha(1f);
     }
 
-    private void resetScanDoneScrimElevation() {
+    private void resetOverlayScrimElevation() {
         scanDoneScrim.setElevation(TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP, SCAN_DONE_SCRIM_ELEVATION_DP,
                 getResources().getDisplayMetrics()));
@@ -661,7 +667,7 @@ public class MainActivity extends AppCompatActivity {
 
         scanDoneScrim.setAlpha(0f);
         scanDoneDialog.setAlpha(0f);
-        showScanDoneScrimBehindTopBar();
+        showOverlayScrimBehindTopBar();
         scanDoneScrim.animate().alpha(1f).setDuration(200).start();
         scanDoneDialog.setVisibility(View.VISIBLE);
         scanDoneDialog.animate().alpha(1f).setDuration(200).start();
@@ -707,11 +713,55 @@ public class MainActivity extends AppCompatActivity {
         }
         scanDoneScrim.animate().alpha(0f).setDuration(150).start();
         scanDoneDialog.animate().alpha(0f).setDuration(150).withEndAction(() -> {
-            scanDoneScrim.setVisibility(View.GONE);
             scanDoneDialog.setVisibility(View.GONE);
             scanDoneScrim.setAlpha(1f);
             scanDoneDialog.setAlpha(1f);
-            resetScanDoneScrimElevation();
+            if (deleteConfirmDialog.getVisibility() != View.VISIBLE) {
+                scanDoneScrim.setVisibility(View.GONE);
+                resetOverlayScrimElevation();
+            }
+            if (onHidden != null) onHidden.run();
+        }).start();
+    }
+
+    private void showDeleteConfirmDialog() {
+        if (csvStore == null) {
+            toast("Tabulka se ještě načítá");
+            return;
+        }
+        if (csvStore.getLastRow() == null) {
+            toast("Tabulka je prázdná");
+            return;
+        }
+        deleteConfirmDialog.setAlpha(0f);
+        showOverlayScrimBehindTopBar();
+        scanDoneScrim.animate().alpha(1f).setDuration(200).start();
+        deleteConfirmDialog.setVisibility(View.VISIBLE);
+        deleteConfirmDialog.animate().alpha(1f).setDuration(200).start();
+    }
+
+    private void onDeleteConfirmYes() {
+        hideDeleteConfirmDialog(this::deleteLastCsvRow);
+    }
+
+    private void onDeleteConfirmNo() {
+        hideDeleteConfirmDialog(null);
+    }
+
+    private void hideDeleteConfirmDialog(Runnable onHidden) {
+        if (deleteConfirmDialog.getVisibility() != View.VISIBLE) {
+            if (onHidden != null) onHidden.run();
+            return;
+        }
+        scanDoneScrim.animate().alpha(0f).setDuration(150).start();
+        deleteConfirmDialog.animate().alpha(0f).setDuration(150).withEndAction(() -> {
+            if (scanDoneDialog.getVisibility() != View.VISIBLE) {
+                scanDoneScrim.setVisibility(View.GONE);
+                resetOverlayScrimElevation();
+            }
+            deleteConfirmDialog.setVisibility(View.GONE);
+            scanDoneScrim.setAlpha(1f);
+            deleteConfirmDialog.setAlpha(1f);
             if (onHidden != null) onHidden.run();
         }).start();
     }
@@ -920,10 +970,12 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnWritePwd).setOnClickListener(v -> doWritePassword());
         findViewById(R.id.btnLock).setOnClickListener(v -> doLock());
         findViewById(R.id.btnExportCsv).setOnClickListener(v -> exportCsv());
-        findViewById(R.id.btnClearCsv).setOnClickListener(v -> deleteLastCsvRow());
-        findViewById(R.id.btnDeleteLastRecord).setOnClickListener(v -> deleteLastCsvRow());
+        findViewById(R.id.btnClearCsv).setOnClickListener(v -> showDeleteConfirmDialog());
+        findViewById(R.id.btnDeleteLastRecord).setOnClickListener(v -> showDeleteConfirmDialog());
         findViewById(R.id.btnScanDoneContinue).setOnClickListener(v -> onScanDoneContinue());
         findViewById(R.id.btnScanDoneRetry).setOnClickListener(v -> onScanDoneRetry());
+        findViewById(R.id.btnDeleteConfirmYes).setOnClickListener(v -> onDeleteConfirmYes());
+        findViewById(R.id.btnDeleteConfirmNo).setOnClickListener(v -> onDeleteConfirmNo());
     }
 
     // ---------- výběr souboru / TUDU ----------
@@ -1465,7 +1517,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void runTriggerAction() {
-        if (workflowRunning || scanDoneAwaitingConfirm) return;
+        if (workflowRunning || scanDoneAwaitingConfirm || deleteConfirmDialog.getVisibility() == View.VISIBLE) return;
         if (!requirePowerPreset()) return;
         if (!epc.isValid()) {
             toast("EPC není validní");
@@ -1498,7 +1550,7 @@ public class MainActivity extends AppCompatActivity {
                 if (k == keyCode) {
                     if (scanDoneAwaitingConfirm) {
                         onScanDoneContinue();
-                    } else {
+                    } else if (deleteConfirmDialog.getVisibility() != View.VISIBLE) {
                         runTriggerAction();
                     }
                     return true;
