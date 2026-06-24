@@ -35,7 +35,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.button.MaterialButton;
+import com.google.android.material.button.MaterialButtonToggleGroup;
 
 import com.rfidw.app.R;
 import com.rfidw.app.csv.CsvStore;
@@ -97,8 +97,8 @@ public class MainActivity extends AppCompatActivity {
     private BottomSheetBehavior<View> workflowBehavior;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
     private CheckBox cbAutoCsv;
-    private MaterialButton btnPowerPreset;
-    private boolean powerPresetInKoleji = true;
+    private MaterialButtonToggleGroup powerPresetGroup;
+    private Boolean powerPresetInKoleji;
 
     // řádky šablony (kontejnery z include)
     private View[] rows = new View[7];
@@ -117,13 +117,15 @@ public class MainActivity extends AppCompatActivity {
         setupCsv();
         setupListeners();
 
+        etPower.setText("");
+
         epc.idRfid = prefs.getLong("idRfid", 1);
         refreshTemplate();
         updateSummary1();
         updateStepIndicators();
         updateLastRecordPreview();
 
-        initReaderAsync();
+        setActionStatus(getString(R.string.power_preset_select_status), COLOR_STATUS_BUSY);
     }
 
     private void bindViews() {
@@ -163,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
         etPwdNew = findViewById(R.id.etPwdNew);
         etLockAccessPwd = findViewById(R.id.etLockAccessPwd);
         cbAutoCsv = findViewById(R.id.cbAutoCsv);
-        btnPowerPreset = findViewById(R.id.btnPowerPreset);
+        powerPresetGroup = findViewById(R.id.powerPresetGroup);
 
         rows[0] = findViewById(R.id.row1);
         rows[1] = findViewById(R.id.row2);
@@ -853,7 +855,10 @@ public class MainActivity extends AppCompatActivity {
     private void setupListeners() {
         findViewById(R.id.btnPickSource).setOnClickListener(v -> pickSourceFile());
 
-        btnPowerPreset.setOnClickListener(v -> togglePowerPreset());
+        powerPresetGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (!isChecked) return;
+            onPowerPresetSelected(checkedId == R.id.btnPowerPresetKoleji);
+        });
         findViewById(R.id.btnApplyPower).setOnClickListener(v -> applyPower());
         findViewById(R.id.btnWrite).setOnClickListener(v -> doWrite());
         findViewById(R.id.btnWritePwd).setOnClickListener(v -> doWritePassword());
@@ -995,6 +1000,7 @@ public class MainActivity extends AppCompatActivity {
     // ---------- zápis EPC ----------
 
     private void applyPower() {
+        if (!requirePowerPreset()) return;
         int p = parseInt(etPower.getText().toString().trim(), POWER_PRESET_KOLEJI_DBM);
         applyPowerValue(p, true);
     }
@@ -1008,22 +1014,34 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void togglePowerPreset() {
-        setPowerPreset(!powerPresetInKoleji, true);
+    private boolean isPowerPresetSelected() {
+        return powerPresetInKoleji != null;
     }
 
-    private void setPowerPreset(boolean inKoleji, boolean applyToReader) {
+    private boolean requirePowerPreset() {
+        if (isPowerPresetSelected()) return true;
+        toast(getString(R.string.power_preset_required));
+        return false;
+    }
+
+    private void onPowerPresetSelected(boolean inKoleji) {
         powerPresetInKoleji = inKoleji;
         int power = inKoleji ? POWER_PRESET_KOLEJI_DBM : POWER_PRESET_RUCE_DBM;
-        btnPowerPreset.setText(inKoleji ? R.string.power_preset_koleji : R.string.power_preset_ruce);
         etPower.setText(String.valueOf(power));
-        if (applyToReader && uhf.isReady()) {
+        powerPresetGroup.setSelectionRequired(true);
+        if (!uhf.isReady()) {
+            initReaderAsync();
+        } else {
             applyPowerValue(power, false);
         }
     }
 
     private void doWrite() {
         if (scanDoneAwaitingConfirm) return;
+        if (!requirePowerPreset()) {
+            if (chainWorkflow) onWorkflowFailed(getString(R.string.power_preset_required));
+            return;
+        }
         if (!epc.isValid()) {
             toast("EPC není validní");
             if (chainWorkflow) onWorkflowFailed("EPC není validní");
@@ -1079,6 +1097,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void doWritePassword() {
         if (scanDoneAwaitingConfirm) return;
+        if (!requirePowerPreset()) {
+            if (chainWorkflow) onWorkflowFailed(getString(R.string.power_preset_required));
+            return;
+        }
         if (!uhf.isReady()) {
             toast("Čtečka není připravena");
             if (chainWorkflow) onWorkflowFailed("čtečka nedostupná");
@@ -1131,6 +1153,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void doLock() {
         if (scanDoneAwaitingConfirm) return;
+        if (!requirePowerPreset()) {
+            if (chainWorkflow) onWorkflowFailed(getString(R.string.power_preset_required));
+            return;
+        }
         if (!uhf.isReady()) {
             toast("Čtečka není připravena");
             if (chainWorkflow) onWorkflowFailed("čtečka nedostupná");
@@ -1357,14 +1383,15 @@ public class MainActivity extends AppCompatActivity {
     // ---------- čtečka ----------
 
     private void initReaderAsync() {
+        if (!isPowerPresetSelected()) return;
         setActionStatus("inicializuji…", COLOR_STATUS_BUSY);
-        setPowerPreset(true, false);
+        final int power = powerPresetInKoleji ? POWER_PRESET_KOLEJI_DBM : POWER_PRESET_RUCE_DBM;
         io.execute(() -> {
             boolean ok = uhf.init(this);
             ui.post(() -> {
                 if (ok) {
                     setActionStatusReady();
-                    setPowerPreset(true, true);
+                    applyPowerValue(power, false);
                 } else {
                     setActionStatus("nedostupná", COLOR_STATUS_ERROR);
                 }
@@ -1374,6 +1401,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void runTriggerAction() {
         if (workflowRunning || scanDoneAwaitingConfirm) return;
+        if (!requirePowerPreset()) return;
         if (!epc.isValid()) {
             toast("EPC není validní");
             return;
