@@ -307,7 +307,8 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:gravity="center"
+            android:orientation="horizontal"
             android:paddingBottom="8dp">
 
             <ImageView
@@ -323,7 +324,8 @@
                 android:id="@+id/powerPresetGroup"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
                 app:singleSelection="true"
                 app:selectionRequired="false">
 
@@ -336,7 +338,13 @@
                     android:paddingStart="8dp"
                     android:paddingEnd="8dp"
                     android:text="@string/power_preset_koleji"
-                    android:textSize="11sp"/>
+                    android:textSize="11sp"
+                    app:icon="@drawable/ic_power_koleji"
+                    app:iconGravity="textStart"
+                    app:iconPadding="4dp"
+                    app:iconSize="16dp"
+                    app:iconTint="@color/power_preset_icon_tint"
+                    app:strokeColor="@color/power_preset_stroke"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnPowerPresetRuce"
@@ -347,13 +355,14 @@
                     android:paddingStart="8dp"
                     android:paddingEnd="8dp"
                     android:text="@string/power_preset_ruce"
-                    android:textSize="11sp"/>
+                    android:textSize="11sp"
+                    app:icon="@drawable/ic_power_ruce"
+                    app:iconGravity="textStart"
+                    app:iconPadding="4dp"
+                    app:iconSize="16dp"
+                    app:iconTint="@color/power_preset_icon_tint"
+                    app:strokeColor="@color/power_preset_stroke"/>
             </com.google.android.material.button.MaterialButtonToggleGroup>
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1"/>
 
             <TextView
                 android:id="@+id/tvReaderStatus"

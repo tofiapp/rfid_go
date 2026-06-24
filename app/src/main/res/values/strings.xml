@@ -25,9 +25,9 @@
     <string name="vyhybka_picker_prefix">Výhybka\u00A0</string>
     <string name="vyhybka_picker_missing_sep">\u00A0·\u00A0</string>
     <string name="vyhybka_picker_missing_prefix">chybí\u00A0</string>
-    <string name="vyhybka_picker_missing_one">část</string>
-    <string name="vyhybka_picker_missing_few">části</string>
-    <string name="vyhybka_picker_missing_many">částí</string>
+    <string name="vyhybka_picker_missing_one">\u00A0část</string>
+    <string name="vyhybka_picker_missing_few">\u00A0části</string>
+    <string name="vyhybka_picker_missing_many">\u00A0částí</string>
     <string name="power_preset_koleji">v koleji</string>
     <string name="power_preset_ruce">v ruce</string>
     <string name="power_preset_required">Nejprve vyberte výkon (v koleji / v ruce)</string>

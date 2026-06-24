@@ -28,8 +28,19 @@ public class UhfManager {
 
     public static final String DEFAULT_LOCK_CODE = "008020";
 
-    /** Výchozí access heslo na tagu; použije se jen při selhání zápisu s uživatelským heslem. */
+    /** @deprecated použijte {@link #PRESET_ACCESS_PASSWORDS} */
+    @Deprecated
     public static final String PRESET_ACCESS_PASSWORD = "11223344";
+
+    /**
+     * Preset access hesla zkoušená při selhání zápisu s uživatelským heslem.
+     * Třetí položka je zatím prázdná – doplní se později.
+     */
+    public static final String[] PRESET_ACCESS_PASSWORDS = {
+            "11223344",
+            "11112222",
+            null,
+    };
 
     private RFIDWithUHFUART reader;
     private boolean ready = false;
@@ -76,6 +87,8 @@ public class UhfManager {
         public String tid;        // TID přečteného tagu
         public String message;
         public boolean usedPresetPassword;
+        /** Preset heslo, které zápis uspělo; null pokud stačilo uživatelské heslo. */
+        public String presetPasswordUsed;
     }
 
     /**
@@ -110,6 +123,7 @@ public class UhfManager {
                     accessPwd, BANK_EPC, EPC_PTR, EPC_LEN, newEpc);
             r.success = attempt.success;
             r.usedPresetPassword = attempt.usedPresetPassword;
+            r.presetPasswordUsed = attempt.presetPasswordUsed;
             r.message = attempt.success
                     ? (attempt.usedPresetPassword ? "EPC zapsáno (preset heslo)." : "EPC zapsáno.")
                     : "Zápis EPC se nezdařil (tag mimo dosah / špatné heslo).";
@@ -155,6 +169,7 @@ public class UhfManager {
                     accessPwd, BANK_RESERVED, ACCESS_PWD_PTR, ACCESS_PWD_LEN, newPwd);
             r.success = attempt.success;
             r.usedPresetPassword = attempt.usedPresetPassword;
+            r.presetPasswordUsed = attempt.presetPasswordUsed;
             r.message = attempt.success
                     ? (attempt.usedPresetPassword ? "Access heslo zapsáno (preset heslo)." : "Access heslo zapsáno.")
                     : "Zápis hesla se nezdařil (špatné heslo / tag zamčen).";
@@ -215,22 +230,29 @@ public class UhfManager {
     private static class PwdWriteAttempt {
         boolean success;
         boolean usedPresetPassword;
+        String presetPasswordUsed;
     }
 
     private PwdWriteAttempt writeDataWithPresetFallback(
             String accessPwd, int bank, int ptr, int len, String data) {
         PwdWriteAttempt attempt = new PwdWriteAttempt();
         String primary = normalizePwd(accessPwd);
-        String preset = normalizePwd(PRESET_ACCESS_PASSWORD);
 
         try {
             if (reader.writeData(primary, bank, ptr, len, data)) {
                 attempt.success = true;
                 return attempt;
             }
-            if (!preset.equals(primary) && reader.writeData(preset, bank, ptr, len, data)) {
-                attempt.success = true;
-                attempt.usedPresetPassword = true;
+            for (String preset : PRESET_ACCESS_PASSWORDS) {
+                if (preset == null || preset.isEmpty()) continue;
+                String normalized = normalizePwd(preset);
+                if (normalized.equals(primary)) continue;
+                if (reader.writeData(normalized, bank, ptr, len, data)) {
+                    attempt.success = true;
+                    attempt.usedPresetPassword = true;
+                    attempt.presetPasswordUsed = normalized;
+                    return attempt;
+                }
             }
         } catch (Exception ignored) {
         }
@@ -239,17 +261,20 @@ public class UhfManager {
 
     private String readTidWithPresetFallback(String accessPwd) {
         String primary = normalizePwd(accessPwd);
-        String preset = normalizePwd(PRESET_ACCESS_PASSWORD);
         try {
             String tid = reader.readData(primary, BANK_TID, 0, EPC_LEN);
             if (tid != null && !tid.isEmpty()) return tid;
         } catch (Exception ignored) { }
-        if (preset.equals(primary)) return null;
-        try {
-            return reader.readData(preset, BANK_TID, 0, EPC_LEN);
-        } catch (Exception ignored) {
-            return null;
+        for (String preset : PRESET_ACCESS_PASSWORDS) {
+            if (preset == null || preset.isEmpty()) continue;
+            String normalized = normalizePwd(preset);
+            if (normalized.equals(primary)) continue;
+            try {
+                String tid = reader.readData(normalized, BANK_TID, 0, EPC_LEN);
+                if (tid != null && !tid.isEmpty()) return tid;
+            } catch (Exception ignored) { }
         }
+        return null;
     }
 
     private static String normalizePwd(String pwd) {
