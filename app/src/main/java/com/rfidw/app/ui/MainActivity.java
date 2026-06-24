@@ -938,8 +938,30 @@ public class MainActivity extends AppCompatActivity {
             ui.post(() -> {
                 csvStore = loaded;
                 refreshCsvTable();
+                if (csvStore.size() > 0) {
+                    restoreStateFromLoadedCsv();
+                }
             });
         });
+    }
+
+    /** Obnoví stav šablony a náhled posledního záznamu z již načteného CSV. */
+    private void restoreStateFromLoadedCsv() {
+        if (csvStore == null || csvStore.size() == 0) return;
+        CsvStore.Row last = csvStore.getLastRow();
+        if (last == null) return;
+
+        applyRowToEpc(last);
+        epc.idRfid = csvStore.getMaxIdRfid() + 1;
+        prefs.edit().putLong("idRfid", epc.idRfid).apply();
+        advanceCastAndVyhybka();
+        refreshTemplate();
+        updateStep1();
+        updateSummary1();
+        resetTagWorkflow();
+
+        lastRecordUnlocked = true;
+        updateLastRecordPreview();
     }
 
     private void persistCsvAsync() {
@@ -1024,7 +1046,31 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void onTuduListLoaded() {
-        if (!tuduList.isEmpty()) showTuduPicker();
+        if (tuduList.isEmpty()) return;
+        if (epc.tudu != null && !epc.tudu.isEmpty()) {
+            for (Tudu t : tuduList) {
+                if (t.code.equals(epc.tudu)) {
+                    selectTuduPreservingEpc(t);
+                    return;
+                }
+            }
+        }
+        showTuduPicker();
+    }
+
+    private void selectTuduPreservingEpc(Tudu t) {
+        currentTudu = t;
+        epc.tudu = t.code;
+        if (epc.vyhybka > 0) {
+            for (Tudu.Vyhybka v : t.vyhybky) {
+                if (v.cislo == epc.vyhybka) {
+                    selectVyhybka(v, false);
+                    return;
+                }
+            }
+        }
+        Tudu.Vyhybka first = firstAvailableVyhybka(t);
+        selectVyhybka(first != null ? first : t.vyhybky.get(0), true);
     }
 
     private void selectTudu(Tudu t) {
@@ -1056,38 +1102,34 @@ public class MainActivity extends AppCompatActivity {
 
     private void restoreSelectionFromRow(CsvStore.Row row) {
         if (row == null) return;
+        applyRowToEpc(row);
+        prefs.edit().putLong("idRfid", epc.idRfid).apply();
+        refreshTemplate();
+        updateStep1();
+        updateSummary1();
+        resetTagWorkflow();
+    }
+
+    private void applyRowToEpc(CsvStore.Row row) {
         epc.year = row.rok;
         epc.tudu = row.tudu;
         epc.vyhybka = parseInt(row.vyhybka, epc.vyhybka);
         epc.cast = parseInt(row.cast, epc.cast);
         epc.idRfid = parseLong(row.idRfid, epc.idRfid);
-        prefs.edit().putLong("idRfid", epc.idRfid).apply();
 
-        int tuduPos = -1;
+        currentTudu = null;
+        currentVyhybka = null;
         for (int i = 0; i < tuduList.size(); i++) {
-            if (tuduList.get(i).code.equals(row.tudu)) {
-                tuduPos = i;
-                break;
-            }
-        }
-        if (tuduPos >= 0) {
-            currentTudu = tuduList.get(tuduPos);
-            int vyhybkaPos = -1;
-            for (int i = 0; i < currentTudu.vyhybky.size(); i++) {
-                if (currentTudu.vyhybky.get(i).cislo == epc.vyhybka) {
-                    vyhybkaPos = i;
+            if (!tuduList.get(i).code.equals(row.tudu)) continue;
+            currentTudu = tuduList.get(i);
+            for (Tudu.Vyhybka v : currentTudu.vyhybky) {
+                if (v.cislo == epc.vyhybka) {
+                    currentVyhybka = v;
                     break;
                 }
             }
-            if (vyhybkaPos >= 0) {
-                currentVyhybka = currentTudu.vyhybky.get(vyhybkaPos);
-            }
+            break;
         }
-
-        refreshTemplate();
-        updateStep1();
-        updateSummary1();
-        resetTagWorkflow();
     }
 
     private void deleteLastCsvRow() {

@@ -71,6 +71,16 @@ public class CsvStore {
         return list.get(list.size() - 1);
     }
 
+    /** Vrátí nejvyšší hodnotu ID_RFID v tabulce, nebo 0 pokud je tabulka prázdná. */
+    public synchronized long getMaxIdRfid() {
+        long max = 0;
+        for (Row r : rows.values()) {
+            long id = parseLong(r.idRfid, 0);
+            if (id > max) max = id;
+        }
+        return max;
+    }
+
     /** Vloží nebo přepíše řádek podle ID_RFID (jen v paměti). */
     public synchronized void upsert(Row row) {
         Row previous = rows.get(row.idRfid);
@@ -200,6 +210,14 @@ public class CsvStore {
     private static int parseInt(String s, int def) {
         try {
             return Integer.parseInt(s.replaceAll("[^0-9-]", ""));
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private static long parseLong(String s, long def) {
+        try {
+            return Long.parseLong(s.replaceAll("[^0-9-]", ""));
         } catch (Exception e) {
             return def;
         }
