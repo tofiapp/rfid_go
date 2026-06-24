@@ -22,4 +22,10 @@
     <string name="last_record_label">poslední záznam</string>
     <string name="last_record_vyhybka_prefix">výhybka\u00A0</string>
     <string name="last_record_cast_prefix">část\u00A0</string>
+    <string name="vyhybka_picker_prefix">Výhybka\u00A0</string>
+    <string name="vyhybka_picker_missing_sep">\u00A0·\u00A0</string>
+    <string name="vyhybka_picker_missing_prefix">chybí\u00A0</string>
+    <string name="vyhybka_picker_missing_one">část</string>
+    <string name="vyhybka_picker_missing_few">části</string>
+    <string name="vyhybka_picker_missing_many">částí</string>
 </resources>
