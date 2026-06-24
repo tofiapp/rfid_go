@@ -8,9 +8,13 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Výstupní tabulka .CSV.
@@ -44,6 +48,8 @@ public class CsvStore {
     private final File file;
     // zachovává pořadí vložení, klíč = ID_RFID
     private final Map<String, Row> rows = new LinkedHashMap<>();
+    // rychlý index: TUDU|výhybka → množina zapsaných částí
+    private final Map<String, Set<Integer>> castsByVyhybka = new HashMap<>();
 
     public CsvStore(File file) {
         this.file = file;
@@ -65,15 +71,17 @@ public class CsvStore {
         return list.get(list.size() - 1);
     }
 
-    /** Vloží nebo přepíše řádek podle ID_RFID a uloží na disk. */
+    /** Vloží nebo přepíše řádek podle ID_RFID (jen v paměti). */
     public synchronized void upsert(Row row) {
+        Row previous = rows.get(row.idRfid);
+        if (previous != null) removeFromCastIndex(previous);
         rows.put(row.idRfid, row);
-        save();
+        addToCastIndex(row);
     }
 
     public synchronized void clear() {
         rows.clear();
-        save();
+        castsByVyhybka.clear();
     }
 
     /** Vrátí posledních {@code max} vložených řádků (chronologicky od nejstaršího). */
@@ -84,20 +92,33 @@ public class CsvStore {
         return new ArrayList<>(all.subList(from, all.size()));
     }
 
-    /** Odstraní poslední vložený řádek a uloží na disk. Vrátí smazaný řádek nebo null. */
+    /** Odstraní poslední vložený řádek (jen v paměti). Vrátí smazaný řádek nebo null. */
     public synchronized Row removeLast() {
         if (rows.isEmpty()) return null;
         List<Row> list = getRows();
         Row last = list.get(list.size() - 1);
         rows.remove(last.idRfid);
-        save();
+        removeFromCastIndex(last);
         return last;
+    }
+
+    /** Vrátí množinu částí výhybky, které jsou v CSV pro dané TUDU. */
+    public synchronized Set<Integer> getWrittenCasts(String tuduCode, int vyhybkaCislo) {
+        Set<Integer> casts = castsByVyhybka.get(vyhybkaKey(tuduCode, vyhybkaCislo));
+        if (casts == null || casts.isEmpty()) return Collections.emptySet();
+        return new HashSet<>(casts);
+    }
+
+    /** Uloží aktuální stav na disk. Volat mimo UI vlákno. */
+    public synchronized void persist() {
+        save();
     }
 
     // ----------------------------------------------------------- IO
 
     private void load() {
         rows.clear();
+        castsByVyhybka.clear();
         if (file == null || !file.exists()) return;
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
@@ -121,10 +142,13 @@ public class CsvStore {
                 r.cast    = get(c, 6);
                 if (r.idRfid != null && !r.idRfid.isEmpty()) {
                     rows.put(r.idRfid, r);
+                    addToCastIndex(r);
                 }
             }
         } catch (Exception e) {
             // poškozený soubor – začneme s prázdnou tabulkou
+            rows.clear();
+            castsByVyhybka.clear();
         }
     }
 
@@ -146,8 +170,39 @@ public class CsvStore {
         }
     }
 
+    private static String vyhybkaKey(String tuduCode, int vyhybkaCislo) {
+        return tuduCode + "\0" + vyhybkaCislo;
+    }
+
+    private void addToCastIndex(Row row) {
+        int cast = parseInt(row.cast, -1);
+        int vyhybka = parseInt(row.vyhybka, -1);
+        if (row.tudu == null || row.tudu.isEmpty() || vyhybka < 0 || cast < 0) return;
+        castsByVyhybka
+                .computeIfAbsent(vyhybkaKey(row.tudu, vyhybka), k -> new HashSet<>())
+                .add(cast);
+    }
+
+    private void removeFromCastIndex(Row row) {
+        int cast = parseInt(row.cast, -1);
+        int vyhybka = parseInt(row.vyhybka, -1);
+        if (row.tudu == null || row.tudu.isEmpty() || vyhybka < 0 || cast < 0) return;
+        Set<Integer> casts = castsByVyhybka.get(vyhybkaKey(row.tudu, vyhybka));
+        if (casts == null) return;
+        casts.remove(cast);
+        if (casts.isEmpty()) castsByVyhybka.remove(vyhybkaKey(row.tudu, vyhybka));
+    }
+
     private static String get(String[] arr, int i) {
         return i < arr.length ? arr[i].trim() : "";
+    }
+
+    private static int parseInt(String s, int def) {
+        try {
+            return Integer.parseInt(s.replaceAll("[^0-9-]", ""));
+        } catch (Exception e) {
+            return def;
+        }
     }
 
     private static String join(String[] cols) {
