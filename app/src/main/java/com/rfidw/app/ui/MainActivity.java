@@ -65,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int WORKFLOW_DONE_DELAY_MS = 1500;
     private static final int POWER_PRESET_KOLEJI_DBM = 14;
     private static final int POWER_PRESET_RUCE_DBM = 1;
+    private static final String DEFAULT_ACCESS_PWD = "00000000";
 
     private final UhfManager uhf = new UhfManager();
     private final EpcModel epc = new EpcModel();
@@ -80,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences prefs;
 
     private boolean step1Done, step2Done, step3Done, step2Failed;
-    private boolean workflowRunning, chainWorkflow, scanDoneAwaitingConfirm;
+    private boolean workflowRunning, chainWorkflow, scanDoneAwaitingConfirm, lastRecordUnlocked;
     private int activeStep;
 
     // view reference
@@ -123,7 +124,6 @@ public class MainActivity extends AppCompatActivity {
         refreshTemplate();
         updateSummary1();
         updateStepIndicators();
-        updateLastRecordPreview();
 
         setActionStatusReady();
     }
@@ -236,7 +236,6 @@ public class MainActivity extends AppCompatActivity {
                 } else if (expanded) {
                     workflowContent.setVisibility(View.VISIBLE);
                     workflowContent.setAlpha(1f);
-                    collapseWorkflowCards();
                 }
                 updateWorkflowSheetOverlay(bottomSheet, expanded);
             }
@@ -318,13 +317,6 @@ public class MainActivity extends AppCompatActivity {
         body.setVisibility(View.GONE);
         String t = header.getText().toString();
         if (t.startsWith("▾")) header.setText("▸" + t.substring(1));
-    }
-
-    private void collapseWorkflowCards() {
-        collapseCard(R.id.header2, R.id.body2);
-        collapseCard(R.id.header3, R.id.body3);
-        collapseCard(R.id.header4, R.id.body4);
-        collapseCard(R.id.header5, R.id.body5);
     }
 
     private void scrollToCard1() {
@@ -542,6 +534,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateLastRecordPreview() {
+        if (!lastRecordUnlocked) {
+            lastRecordBox.setVisibility(View.GONE);
+            return;
+        }
         CsvStore.Row last = csvStore != null ? csvStore.getLastRow() : null;
         if (last == null) {
             lastRecordBox.setVisibility(View.GONE);
@@ -669,6 +665,8 @@ public class MainActivity extends AppCompatActivity {
         scanDoneAwaitingConfirm = false;
         hideScanDoneNotification(() -> {
             onTagCycleComplete();
+            lastRecordUnlocked = true;
+            updateLastRecordPreview();
             step2Done = false;
             step2Failed = false;
             step3Done = false;
@@ -880,7 +878,6 @@ public class MainActivity extends AppCompatActivity {
             ui.post(() -> {
                 csvStore = loaded;
                 refreshCsvTable();
-                updateLastRecordPreview();
             });
         });
     }
@@ -953,7 +950,6 @@ public class MainActivity extends AppCompatActivity {
                     tvSourceFile.setText(name + "  •  TUDU: " + loaded.size());
                     collapseCard1Body();
                     scrollToCard1();
-                    updateLastRecordPreview();
                     onTuduListLoaded();
                 });
             } catch (Exception e) {
@@ -1120,10 +1116,15 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void resetAccessPasswordFields() {
+        etAccessPwd.setText(DEFAULT_ACCESS_PWD);
+        etPwdAccess.setText(DEFAULT_ACCESS_PWD);
+    }
+
     private void onWriteDone(UhfManager.WriteResult r, String writtenEpc) {
         if (r.success) {
             if (r.presetPasswordUsed != null) {
-                etAccessPwd.setText(r.presetPasswordUsed);
+                resetAccessPasswordFields();
             }
             tvWriteResult.setTextColor(0xFF2E7D32);
             tvWriteResult.setText("✓ " + r.message
@@ -1182,7 +1183,7 @@ public class MainActivity extends AppCompatActivity {
     private void onPwdWriteDone(UhfManager.WriteResult r) {
         if (r.success) {
             if (r.presetPasswordUsed != null) {
-                etPwdAccess.setText(r.presetPasswordUsed);
+                resetAccessPasswordFields();
             }
             tvPwdWriteResult.setTextColor(0xFF2E7D32);
             tvPwdWriteResult.setText("✓ " + r.message
@@ -1275,7 +1276,6 @@ public class MainActivity extends AppCompatActivity {
             csvStore.upsert(row);
             persistCsvAsync();
             refreshCsvTable();
-            updateLastRecordPreview();
         } catch (Exception e) {
             toast("CSV: " + e.getMessage());
         }
@@ -1288,6 +1288,7 @@ public class MainActivity extends AppCompatActivity {
         advanceCastAndVyhybka();
         refreshTemplate();
         updateSummary1();
+        resetAccessPasswordFields();
     }
 
     private void advanceCastAndVyhybka() {
