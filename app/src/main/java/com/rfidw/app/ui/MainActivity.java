@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int COLOR_STATUS_BUSY = 0xFF5F6A76;
     private static final int COLOR_STATUS_ERROR = 0xFFC62828;
     private static final int WORKFLOW_DONE_DELAY_MS = 1500;
-    private static final int POWER_PRESET_KOLEJI_DBM = 14;
+    private static final int POWER_PRESET_KOLEJI_DBM = 16;
     private static final int POWER_PRESET_RUCE_DBM = 1;
 
     private final UhfManager uhf = new UhfManager();
