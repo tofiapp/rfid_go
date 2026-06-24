@@ -45,7 +45,7 @@ import com.rfidw.app.rfid.UhfManager;
 
 import java.io.File;
 import java.io.InputStream;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
             tvLastRecordVyhybka, tvLastRecordCast,
             step1Circle, step2Circle, step3Circle;
     private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneScrim,
-            workflowSheetScrim, scanDoneDialog, lastRecordBox, card1, topBar;
+            scanDoneDialog, lastRecordBox, card1, topBar;
     private NestedScrollView mainScroll;
     private BottomSheetBehavior<View> workflowBehavior;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
@@ -143,7 +143,6 @@ public class MainActivity extends AppCompatActivity {
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
         scanDoneScrim = findViewById(R.id.scanDoneScrim);
-        workflowSheetScrim = findViewById(R.id.workflowSheetScrim);
         scanDoneDialog = findViewById(R.id.scanDoneDialog);
         tvScanDoneVyhybka = findViewById(R.id.tvScanDoneVyhybka);
         tvScanDoneCast = findViewById(R.id.tvScanDoneCast);
@@ -192,26 +191,12 @@ public class MainActivity extends AppCompatActivity {
         workflowBehavior.setHideable(false);
         workflowBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
 
-        workflowSheetScrim.setOnClickListener(v ->
-                workflowBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED));
-
         workflowBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override
             public void onStateChanged(View bottomSheet, int newState) {
                 boolean expanded = newState == BottomSheetBehavior.STATE_EXPANDED;
                 workflowContent.setVisibility(expanded ? View.VISIBLE : View.GONE);
                 updateWorkflowSheetOverlay(bottomSheet, expanded);
-            }
-
-            @Override
-            public void onSlide(View bottomSheet, float slideOffset) {
-                if (slideOffset <= 0f) {
-                    workflowSheetScrim.setVisibility(View.GONE);
-                    workflowSheetScrim.setAlpha(0f);
-                    return;
-                }
-                workflowSheetScrim.setVisibility(View.VISIBLE);
-                workflowSheetScrim.setAlpha(slideOffset);
             }
         });
 
@@ -230,17 +215,11 @@ public class MainActivity extends AppCompatActivity {
     private void updateWorkflowSheetOverlay(View sheet, boolean expanded) {
         updateWorkflowSheetElevation(sheet, expanded);
         if (expanded) {
-            workflowSheetScrim.setVisibility(View.VISIBLE);
-            workflowSheetScrim.setAlpha(1f);
             if (scanDoneScrim.getVisibility() == View.VISIBLE) {
                 scanDoneScrim.setVisibility(View.GONE);
             }
-        } else {
-            workflowSheetScrim.setVisibility(View.GONE);
-            workflowSheetScrim.setAlpha(0f);
-            if (scanDoneDialog.getVisibility() == View.VISIBLE) {
-                showScanDoneScrimBehindTopBar();
-            }
+        } else if (scanDoneDialog.getVisibility() == View.VISIBLE) {
+            showScanDoneScrimBehindTopBar();
         }
     }
 
@@ -649,10 +628,6 @@ public class MainActivity extends AppCompatActivity {
             scanDoneDialog.setVisibility(View.GONE);
             scanDoneScrim.setAlpha(1f);
             scanDoneDialog.setAlpha(1f);
-            if (isWorkflowSheetExpanded()) {
-                workflowSheetScrim.setVisibility(View.VISIBLE);
-                workflowSheetScrim.setAlpha(1f);
-            }
             if (onHidden != null) onHidden.run();
         }).start();
     }
@@ -796,15 +771,34 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupCsv() {
         File out = new File(getExternalFilesDir(null), "rfid_go_output.csv");
-        csvStore = new CsvStore(out);
         tvCsvPath.setText(out.getAbsolutePath());
 
         csvAdapter = new CsvAdapter();
         RecyclerView rv = findViewById(R.id.rvCsv);
         rv.setLayoutManager(new LinearLayoutManager(this));
+        rv.setHasFixedSize(true);
+        rv.setItemAnimator(null);
         rv.setAdapter(csvAdapter);
-        refreshCsvTable();
-        updateLastRecordPreview();
+
+        io.execute(() -> {
+            CsvStore loaded = new CsvStore(out);
+            ui.post(() -> {
+                csvStore = loaded;
+                refreshCsvTable();
+                updateLastRecordPreview();
+            });
+        });
+    }
+
+    private void persistCsvAsync() {
+        if (csvStore == null) return;
+        io.execute(() -> {
+            try {
+                csvStore.persist();
+            } catch (Exception e) {
+                ui.post(() -> toast("CSV uložení: " + e.getMessage()));
+            }
+        });
     }
 
     private void refreshCsvTable() {
@@ -940,11 +934,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void deleteLastCsvRow() {
+        if (csvStore == null) {
+            toast("Tabulka se ještě načítá");
+            return;
+        }
         CsvStore.Row last = csvStore.removeLast();
         if (last == null) {
             toast("Tabulka je prázdná");
             return;
         }
+        persistCsvAsync();
         refreshCsvTable();
         restoreSelectionFromRow(last);
         updateLastRecordPreview();
@@ -1120,6 +1119,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void saveRowToCsv(String epc24, String tid) {
+        if (csvStore == null) return;
         try {
             EpcModel.Decoded d = EpcModel.decode(epc24);
             CsvStore.Row row = new CsvStore.Row();
@@ -1131,6 +1131,7 @@ public class MainActivity extends AppCompatActivity {
             row.vyhybka = d.vyhybka;
             row.cast = d.cast;
             csvStore.upsert(row);
+            persistCsvAsync();
             refreshCsvTable();
             updateLastRecordPreview();
         } catch (Exception e) {
@@ -1216,19 +1217,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private Set<Integer> getWrittenCastsForVyhybka(String tuduCode, Tudu.Vyhybka v) {
-        Set<Integer> casts = new HashSet<>();
-        for (CsvStore.Row row : csvStore.getRows()) {
-            if (!tuduCode.equals(row.tudu)) continue;
-            if (parseInt(row.vyhybka, -1) != v.cislo) continue;
-            int cast = parseInt(row.cast, -1);
-            if (cast >= 0) casts.add(cast);
-        }
-        return casts;
+        if (csvStore == null) return Collections.emptySet();
+        return csvStore.getWrittenCasts(tuduCode, v.cislo);
     }
 
     // ---------- export CSV ----------
 
     private void exportCsv() {
+        if (csvStore == null) {
+            toast("Tabulka se ještě načítá");
+            return;
+        }
         try {
             File f = csvStore.getFile();
             if (!f.exists() || csvStore.size() == 0) {
@@ -1311,6 +1310,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         io.execute(uhf::free);
+        io.shutdown();
     }
 
     // ---------- pomocné ----------

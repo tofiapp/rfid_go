@@ -247,15 +247,10 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDeleteLastRecord"
-                style="@style/Widget.Material3.Button.TextButton"
+                style="@style/Widget.RfidGo.DeleteButtonCompact"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:minHeight="0dp"
-                android:minWidth="0dp"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:text="@string/btn_delete_short"
-                android:textSize="12sp"/>
+                android:text="@string/btn_delete_short"/>
         </LinearLayout>
 
         <LinearLayout
@@ -435,17 +430,6 @@
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-
-    <!-- Ztmavení celé obrazovky při rozbaleném panelu Pokročilé -->
-    <View
-        android:id="@+id/workflowSheetScrim"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#B3000000"
-        android:clickable="true"
-        android:elevation="42dp"
-        android:focusable="true"
-        android:visibility="gone"/>
 
     <!-- Vyjížděcí panel Pokročilé – po rozbalení překryje celou obrazovku kromě notifikace -->
     <LinearLayout
