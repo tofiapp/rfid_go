@@ -125,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
         updateStepIndicators();
         updateLastRecordPreview();
 
-        setActionStatus(getString(R.string.power_preset_select_status), COLOR_STATUS_ERROR);
+        setActionStatusReady();
     }
 
     private void bindViews() {
@@ -181,6 +181,7 @@ public class MainActivity extends AppCompatActivity {
         tvReaderStatus.post(() -> {
             float maxWidth = 0f;
             String[] statusTexts = {
+                    getString(R.string.tudu_select_status),
                     getString(R.string.power_preset_select_status),
                     "připraveno",
                     "zapisuji EPC…",
@@ -235,6 +236,7 @@ public class MainActivity extends AppCompatActivity {
                 } else if (expanded) {
                     workflowContent.setVisibility(View.VISIBLE);
                     workflowContent.setAlpha(1f);
+                    collapseWorkflowCards();
                 }
                 updateWorkflowSheetOverlay(bottomSheet, expanded);
             }
@@ -307,11 +309,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void collapseCard1Body() {
-        View body = findViewById(R.id.body1);
-        TextView header = findViewById(R.id.header1);
+        collapseCard(R.id.header1, R.id.body1);
+    }
+
+    private void collapseCard(int headerId, int bodyId) {
+        View body = findViewById(bodyId);
+        TextView header = findViewById(headerId);
         body.setVisibility(View.GONE);
         String t = header.getText().toString();
         if (t.startsWith("▾")) header.setText("▸" + t.substring(1));
+    }
+
+    private void collapseWorkflowCards() {
+        collapseCard(R.id.header2, R.id.body2);
+        collapseCard(R.id.header3, R.id.body3);
+        collapseCard(R.id.header4, R.id.body4);
+        collapseCard(R.id.header5, R.id.body5);
     }
 
     private void scrollToCard1() {
@@ -462,7 +475,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateStepIndicators() {
         setStepCircle(step1Circle, step1Done, activeStep == 1, false, "1");
-        boolean modeMissing = !isPowerPresetSelected();
+        boolean modeMissing = step1Done && !isPowerPresetSelected();
         boolean step2Error = step2Failed || modeMissing;
         setStepCircle(step2Circle, step2Done && !modeMissing, activeStep == 2 && !modeMissing,
                 step2Error, "2");
@@ -495,6 +508,9 @@ public class MainActivity extends AppCompatActivity {
         step1Done = currentTudu != null && currentVyhybka != null
                 && epc.tudu != null && !epc.tudu.isEmpty();
         updateStepIndicators();
+        if (!workflowRunning) {
+            setActionStatusReady();
+        }
     }
 
     private void updateSummary1() {
@@ -722,6 +738,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setActionStatusReady() {
+        if (!step1Done) {
+            setActionStatus(getString(R.string.tudu_select_status), COLOR_STATUS_ERROR);
+            return;
+        }
         if (!isPowerPresetSelected()) {
             setActionStatus(getString(R.string.power_preset_select_status), COLOR_STATUS_ERROR);
             updateStepIndicators();
