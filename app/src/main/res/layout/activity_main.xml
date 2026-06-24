@@ -4,59 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Vyjížděcí panel: pokročilé (EPC náhled, karty 2–5) – nízká elevation, překryje jen spodní oblast -->
-    <LinearLayout
-        android:id="@+id/workflowSheet"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/bottom_sheet_bg"
-        android:elevation="20dp"
-        android:orientation="vertical"
-        app:behavior_hideable="false"
-        app:behavior_peekHeight="56dp"
-        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
-
-        <LinearLayout
-            android:id="@+id/workflowSheetHandle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:paddingTop="10dp"
-            android:paddingBottom="8dp">
-
-            <View
-                android:layout_width="40dp"
-                android:layout_height="4dp"
-                android:layout_marginBottom="6dp"
-                android:background="#B0BEC5"/>
-
-            <TextView
-                android:id="@+id/tvWorkflowSheetTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/workflow_sheet_title"
-                android:textColor="@color/primary_dark"
-                android:textSize="14sp"
-                android:textStyle="bold"/>
-        </LinearLayout>
-
-        <FrameLayout
-            android:id="@+id/workflowSheetContent"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone">
-
-            <include layout="@layout/bottom_sheet_workflow"/>
-
-        </FrameLayout>
-
-    </LinearLayout>
-
-    <!-- Hlavní obsah (karta TUDU + nápověda) – zůstává nad vyjížděcím panelem -->
+    <!-- Hlavní obsah (karta TUDU + nápověda) -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/mainScroll"
         android:layout_width="match_parent"
@@ -348,18 +296,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Ztmavení pod horní lištou při velké notifikaci -->
-    <View
-        android:id="@+id/scanDoneScrim"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#B3000000"
-        android:clickable="true"
-        android:elevation="34dp"
-        android:focusable="true"
-        android:visibility="gone"/>
-
-    <!-- Hlavička + indikátor kroků – zůstávají čitelné při notifikaci -->
+    <!-- Hlavička + indikátor kroků -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
@@ -498,6 +435,80 @@
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
+
+    <!-- Ztmavení celé obrazovky při rozbaleném panelu Pokročilé -->
+    <View
+        android:id="@+id/workflowSheetScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#B3000000"
+        android:clickable="true"
+        android:elevation="42dp"
+        android:focusable="true"
+        android:visibility="gone"/>
+
+    <!-- Vyjížděcí panel Pokročilé – po rozbalení překryje celou obrazovku kromě notifikace -->
+    <LinearLayout
+        android:id="@+id/workflowSheet"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bottom_sheet_bg"
+        android:elevation="20dp"
+        android:orientation="vertical"
+        app:behavior_hideable="false"
+        app:behavior_peekHeight="56dp"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+        <LinearLayout
+            android:id="@+id/workflowSheetHandle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingTop="10dp"
+            android:paddingBottom="8dp">
+
+            <View
+                android:layout_width="40dp"
+                android:layout_height="4dp"
+                android:layout_marginBottom="6dp"
+                android:background="#B0BEC5"/>
+
+            <TextView
+                android:id="@+id/tvWorkflowSheetTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/workflow_sheet_title"
+                android:textColor="@color/primary_dark"
+                android:textSize="14sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/workflowSheetContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <include layout="@layout/bottom_sheet_workflow"/>
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- Ztmavení pod horní lištou při velké notifikaci (panel Pokročilé sbalený) -->
+    <View
+        android:id="@+id/scanDoneScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#B3000000"
+        android:clickable="true"
+        android:elevation="34dp"
+        android:focusable="true"
+        android:visibility="gone"/>
 
     <!-- Karta velké notifikace po úspěšném načtení a zamčení tagu -->
     <LinearLayout
