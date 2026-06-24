@@ -183,7 +183,8 @@ public class MainActivity extends AppCompatActivity {
 
     // ---------- rozbalovací karty a spodní panel ----------
 
-    private static final float WORKFLOW_SHEET_ELEVATION_COLLAPSED_DP = 20f;
+    /** Nad mainScroll (24dp); při rozbalení nad topBar (40dp). */
+    private static final float WORKFLOW_SHEET_ELEVATION_COLLAPSED_DP = 28f;
     private static final float WORKFLOW_SHEET_ELEVATION_EXPANDED_DP = 44f;
     private static final float SCAN_DONE_SCRIM_ELEVATION_DP = 34f;
     private static final float SCAN_DONE_SCRIM_ELEVATION_OVER_SHEET_DP = 46f;
@@ -212,7 +213,9 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onSlide(View bottomSheet, float slideOffset) {
-                if (slideOffset <= 0f) {
+                boolean sliding = slideOffset > 0f;
+                updateWorkflowSheetElevation(bottomSheet, sliding);
+                if (!sliding) {
                     workflowContent.setVisibility(View.GONE);
                     workflowContent.setAlpha(1f);
                     return;
