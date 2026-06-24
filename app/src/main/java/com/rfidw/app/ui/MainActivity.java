@@ -15,6 +15,7 @@ import android.text.Spanned;
 import android.text.TextWatcher;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
+import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -88,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
             tvLastRecordVyhybka, tvLastRecordCast,
             step1Circle, step2Circle, step3Circle;
     private View summary1, colSummaryTudu, colSummaryVyhybka, castHintBox, scanDoneScrim,
-            scanDoneDialog, lastRecordBox, card1, topBar;
+            workflowSheetScrim, scanDoneDialog, lastRecordBox, card1, topBar;
     private NestedScrollView mainScroll;
     private BottomSheetBehavior<View> workflowBehavior;
     private EditText etAccessPwd, etPower, etPwdAccess, etPwdNew, etLockAccessPwd;
@@ -142,6 +143,7 @@ public class MainActivity extends AppCompatActivity {
         step2Circle = findViewById(R.id.step2Circle);
         step3Circle = findViewById(R.id.step3Circle);
         scanDoneScrim = findViewById(R.id.scanDoneScrim);
+        workflowSheetScrim = findViewById(R.id.workflowSheetScrim);
         scanDoneDialog = findViewById(R.id.scanDoneDialog);
         tvScanDoneVyhybka = findViewById(R.id.tvScanDoneVyhybka);
         tvScanDoneCast = findViewById(R.id.tvScanDoneCast);
@@ -180,6 +182,9 @@ public class MainActivity extends AppCompatActivity {
 
     // ---------- rozbalovací karty a spodní panel ----------
 
+    private static final float WORKFLOW_SHEET_ELEVATION_COLLAPSED_DP = 20f;
+    private static final float WORKFLOW_SHEET_ELEVATION_EXPANDED_DP = 44f;
+
     private void setupWorkflowSheet() {
         View sheet = findViewById(R.id.workflowSheet);
         View workflowContent = findViewById(R.id.workflowSheetContent);
@@ -187,15 +192,26 @@ public class MainActivity extends AppCompatActivity {
         workflowBehavior.setHideable(false);
         workflowBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
 
+        workflowSheetScrim.setOnClickListener(v ->
+                workflowBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED));
+
         workflowBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override
             public void onStateChanged(View bottomSheet, int newState) {
-                workflowContent.setVisibility(
-                        newState == BottomSheetBehavior.STATE_EXPANDED ? View.VISIBLE : View.GONE);
+                boolean expanded = newState == BottomSheetBehavior.STATE_EXPANDED;
+                workflowContent.setVisibility(expanded ? View.VISIBLE : View.GONE);
+                updateWorkflowSheetOverlay(bottomSheet, expanded);
             }
 
             @Override
             public void onSlide(View bottomSheet, float slideOffset) {
+                if (slideOffset <= 0f) {
+                    workflowSheetScrim.setVisibility(View.GONE);
+                    workflowSheetScrim.setAlpha(0f);
+                    return;
+                }
+                workflowSheetScrim.setVisibility(View.VISIBLE);
+                workflowSheetScrim.setAlpha(slideOffset);
             }
         });
 
@@ -209,6 +225,45 @@ public class MainActivity extends AppCompatActivity {
 
         colSummaryTudu.setOnClickListener(v -> showTuduPicker());
         colSummaryVyhybka.setOnClickListener(v -> showVyhybkaPicker());
+    }
+
+    private void updateWorkflowSheetOverlay(View sheet, boolean expanded) {
+        updateWorkflowSheetElevation(sheet, expanded);
+        if (expanded) {
+            workflowSheetScrim.setVisibility(View.VISIBLE);
+            workflowSheetScrim.setAlpha(1f);
+            if (scanDoneScrim.getVisibility() == View.VISIBLE) {
+                scanDoneScrim.setVisibility(View.GONE);
+            }
+        } else {
+            workflowSheetScrim.setVisibility(View.GONE);
+            workflowSheetScrim.setAlpha(0f);
+            if (scanDoneDialog.getVisibility() == View.VISIBLE) {
+                showScanDoneScrimBehindTopBar();
+            }
+        }
+    }
+
+    private void showScanDoneScrimBehindTopBar() {
+        ViewGroup.MarginLayoutParams scrimLp =
+                (ViewGroup.MarginLayoutParams) scanDoneScrim.getLayoutParams();
+        scrimLp.topMargin = topBar.getHeight();
+        scanDoneScrim.setLayoutParams(scrimLp);
+        scanDoneScrim.setVisibility(View.VISIBLE);
+        scanDoneScrim.setAlpha(1f);
+    }
+
+    private boolean isWorkflowSheetExpanded() {
+        return workflowBehavior != null
+                && workflowBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED;
+    }
+
+    private void updateWorkflowSheetElevation(View sheet, boolean expanded) {
+        float dp = expanded
+                ? WORKFLOW_SHEET_ELEVATION_EXPANDED_DP
+                : WORKFLOW_SHEET_ELEVATION_COLLAPSED_DP;
+        sheet.setElevation(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics()));
     }
 
     private void expandCard1Body() {
@@ -546,13 +601,11 @@ public class MainActivity extends AppCompatActivity {
 
         scanDoneScrim.setAlpha(0f);
         scanDoneDialog.setAlpha(0f);
-        ViewGroup.MarginLayoutParams scrimLp =
-                (ViewGroup.MarginLayoutParams) scanDoneScrim.getLayoutParams();
-        scrimLp.topMargin = topBar.getHeight();
-        scanDoneScrim.setLayoutParams(scrimLp);
-        scanDoneScrim.setVisibility(View.VISIBLE);
+        if (!isWorkflowSheetExpanded()) {
+            showScanDoneScrimBehindTopBar();
+            scanDoneScrim.animate().alpha(1f).setDuration(200).start();
+        }
         scanDoneDialog.setVisibility(View.VISIBLE);
-        scanDoneScrim.animate().alpha(1f).setDuration(200).start();
         scanDoneDialog.animate().alpha(1f).setDuration(200).start();
     }
 
@@ -596,6 +649,10 @@ public class MainActivity extends AppCompatActivity {
             scanDoneDialog.setVisibility(View.GONE);
             scanDoneScrim.setAlpha(1f);
             scanDoneDialog.setAlpha(1f);
+            if (isWorkflowSheetExpanded()) {
+                workflowSheetScrim.setVisibility(View.VISIBLE);
+                workflowSheetScrim.setAlpha(1f);
+            }
             if (onHidden != null) onHidden.run();
         }).start();
     }
