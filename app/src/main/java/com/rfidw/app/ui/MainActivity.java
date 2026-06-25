@@ -81,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean step1Done, step2Done, step3Done, step2Failed;
     private boolean workflowRunning, chainWorkflow, scanDoneAwaitingConfirm, lastRecordUnlocked;
+    /** CSV obnoveno dřív než zdrojový soubor – posun na další čip/výhybku až po načtení TUDU. */
+    private boolean pendingAdvanceFromCsv;
     private int activeStep;
 
     // view reference
@@ -954,7 +956,12 @@ public class MainActivity extends AppCompatActivity {
         applyRowToEpc(last);
         epc.idRfid = csvStore.getMaxIdRfid() + 1;
         prefs.edit().putLong("idRfid", epc.idRfid).apply();
-        advanceCastAndVyhybka();
+        syncCurrentVyhybka();
+        if (currentVyhybka != null) {
+            advanceCastAndVyhybka();
+        } else {
+            pendingAdvanceFromCsv = true;
+        }
         refreshTemplate();
         updateStep1();
         updateSummary1();
@@ -1061,10 +1068,30 @@ public class MainActivity extends AppCompatActivity {
     private void selectTuduPreservingEpc(Tudu t) {
         currentTudu = t;
         epc.tudu = t.code;
+        if (pendingAdvanceFromCsv) {
+            pendingAdvanceFromCsv = false;
+            syncCurrentVyhybka();
+            if (currentVyhybka != null) {
+                advanceCastAndVyhybka();
+            } else {
+                Tudu.Vyhybka first = firstAvailableVyhybka(t);
+                selectVyhybka(first != null ? first : t.vyhybky.get(0), true);
+                return;
+            }
+            refreshTemplate();
+            updateStep1();
+            updateSummary1();
+            return;
+        }
         if (epc.vyhybka > 0) {
             for (Tudu.Vyhybka v : t.vyhybky) {
                 if (v.cislo == epc.vyhybka) {
-                    selectVyhybka(v, false);
+                    if (epc.cast > v.castMax || isVyhybkaCompleteInCsv(t.code, v)) {
+                        advanceToNextVyhybka();
+                    } else {
+                        int expected = firstMissingCast(t.code, v);
+                        selectVyhybka(v, epc.cast != expected);
+                    }
                     return;
                 }
             }
@@ -1074,6 +1101,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void selectTudu(Tudu t) {
+        pendingAdvanceFromCsv = false;
         currentTudu = t;
         epc.tudu = t.code;
         if (!t.vyhybky.isEmpty()) {
