@@ -339,24 +339,40 @@
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:minHeight="32dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
+                    android:minHeight="34dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
                     android:text="@string/power_preset_koleji"
+                    android:textColor="@color/power_preset_text_color"
                     android:textSize="11sp"
-                    app:strokeColor="@color/power_preset_stroke"/>
+                    app:backgroundTint="@color/power_preset_background_tint"
+                    app:icon="@drawable/ic_power_koleji"
+                    app:iconGravity="textStart"
+                    app:iconPadding="4dp"
+                    app:iconSize="16dp"
+                    app:iconTint="@color/power_preset_icon_tint"
+                    app:strokeColor="@color/power_preset_stroke"
+                    app:strokeWidth="1dp"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnPowerPresetRuce"
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:minHeight="32dp"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
+                    android:minHeight="34dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
                     android:text="@string/power_preset_ruce"
+                    android:textColor="@color/power_preset_text_color"
                     android:textSize="11sp"
-                    app:strokeColor="@color/power_preset_stroke"/>
+                    app:backgroundTint="@color/power_preset_background_tint"
+                    app:icon="@drawable/ic_power_ruce"
+                    app:iconGravity="textStart"
+                    app:iconPadding="4dp"
+                    app:iconSize="16dp"
+                    app:iconTint="@color/power_preset_icon_tint"
+                    app:strokeColor="@color/power_preset_stroke"
+                    app:strokeWidth="1dp"/>
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <TextView

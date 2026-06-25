@@ -29,8 +29,8 @@
     <string name="vyhybka_picker_missing_one">\u00A0čip</string>
     <string name="vyhybka_picker_missing_few">\u00A0čipy</string>
     <string name="vyhybka_picker_missing_many">\u00A0čipů</string>
-    <string name="power_preset_koleji">🛤 v koleji</string>
-    <string name="power_preset_ruce">✋ v ruce</string>
+    <string name="power_preset_koleji">v koleji</string>
+    <string name="power_preset_ruce">v ruce</string>
     <string name="delete_confirm_title">Opravdu chcete vymazat záznam?</string>
     <string name="delete_confirm_yes">ANO vymazat</string>
     <string name="delete_confirm_no">NE ponechat</string>
