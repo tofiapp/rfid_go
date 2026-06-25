@@ -13,4 +13,6 @@
     <color name="ok">#1B5E20</color>
     <color name="err">#B71C1C</color>
     <color name="lock">#4A148C</color>
+    <color name="last_record_bg">#EDF1ED</color>
+    <color name="last_record_stroke">#C5CEC5</color>
 </resources>

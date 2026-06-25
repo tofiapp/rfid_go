@@ -83,6 +83,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean workflowRunning, chainWorkflow, scanDoneAwaitingConfirm, lastRecordUnlocked;
     /** CSV obnoveno dřív než zdrojový soubor – posun na další čip/výhybku až po načtení TUDU. */
     private boolean pendingAdvanceFromCsv;
+    /** Po obnově z CSV vyžadovat ruční výběr TUDU (bez auto-výběru podle posledního záznamu). */
+    private boolean requireManualTuduSelection;
     private int activeStep;
 
     // view reference
@@ -358,7 +360,12 @@ public class MainActivity extends AppCompatActivity {
                 android.R.layout.simple_list_item_single_choice, filteredCodes);
         listView.setAdapter(adapter);
 
-        int checked = filteredCodes.indexOf(currentTudu != null ? currentTudu.code : "");
+        int checked = -1;
+        if (!requireManualTuduSelection) {
+            String preselect = currentTudu != null ? currentTudu.code
+                    : (epc.tudu != null ? epc.tudu : "");
+            checked = filteredCodes.indexOf(preselect);
+        }
         if (checked >= 0) listView.setItemChecked(checked, true);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
@@ -371,7 +378,12 @@ public class MainActivity extends AppCompatActivity {
             String code = filteredCodes.get(position);
             for (Tudu t : tuduList) {
                 if (t.code.equals(code)) {
-                    selectTudu(t);
+                    requireManualTuduSelection = false;
+                    if (pendingAdvanceFromCsv) {
+                        selectTuduPreservingEpc(t);
+                    } else {
+                        selectTudu(t);
+                    }
                     break;
                 }
             }
@@ -387,9 +399,12 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             adapter.notifyDataSetChanged();
-            String selected = currentTudu != null ? currentTudu.code : "";
-            int pos = filteredCodes.indexOf(selected);
-            if (pos >= 0) listView.setItemChecked(pos, true);
+            if (!requireManualTuduSelection) {
+                String selected = currentTudu != null ? currentTudu.code
+                        : (epc.tudu != null ? epc.tudu : "");
+                int pos = filteredCodes.indexOf(selected);
+                if (pos >= 0) listView.setItemChecked(pos, true);
+            }
         }));
 
         dialog.show();
@@ -968,6 +983,7 @@ public class MainActivity extends AppCompatActivity {
         resetTagWorkflow();
 
         lastRecordUnlocked = true;
+        requireManualTuduSelection = true;
         updateLastRecordPreview();
     }
 
@@ -1054,6 +1070,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void onTuduListLoaded() {
         if (tuduList.isEmpty()) return;
+        if (requireManualTuduSelection) {
+            showTuduPicker();
+            return;
+        }
         if (epc.tudu != null && !epc.tudu.isEmpty()) {
             for (Tudu t : tuduList) {
                 if (t.code.equals(epc.tudu)) {
