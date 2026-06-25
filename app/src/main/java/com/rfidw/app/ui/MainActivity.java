@@ -1509,7 +1509,9 @@ public class MainActivity extends AppCompatActivity {
         String prefix = getString(R.string.vyhybka_picker_prefix);
         String cisloStr = String.valueOf(v.cislo);
         if (!isVyhybkaPartialInCsv(tuduCode, v)) {
-            return prefix + cisloStr;
+            SpannableString span = new SpannableString(prefix + cisloStr);
+            applyVyhybkaAccent(span, prefix.length(), prefix.length() + cisloStr.length());
+            return span;
         }
 
         int missing = countMissingCasts(tuduCode, v);
@@ -1520,9 +1522,12 @@ public class MainActivity extends AppCompatActivity {
         String full = prefix + cisloStr + sep + missingPrefix + missingStr + missingSuffix;
 
         SpannableString span = new SpannableString(full);
-        int numStart = prefix.length() + cisloStr.length() + sep.length() + missingPrefix.length();
-        int numEnd = numStart + missingStr.length();
-        applyCastAccent(span, numStart, numEnd);
+        int cisloStart = prefix.length();
+        int cisloEnd = cisloStart + cisloStr.length();
+        applyVyhybkaAccent(span, cisloStart, cisloEnd);
+        int missingStart = cisloEnd + sep.length() + missingPrefix.length();
+        int missingEnd = missingStart + missingStr.length();
+        applyCastAccent(span, missingStart, missingEnd);
         return span;
     }
 
