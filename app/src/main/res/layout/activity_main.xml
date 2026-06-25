@@ -346,11 +346,6 @@
                     android:textColor="@color/power_preset_text_color"
                     android:textSize="11sp"
                     app:backgroundTint="@color/power_preset_background_tint"
-                    app:icon="@drawable/ic_power_koleji"
-                    app:iconGravity="textStart"
-                    app:iconPadding="4dp"
-                    app:iconSize="16dp"
-                    app:iconTint="@color/power_preset_icon_tint"
                     app:strokeColor="@color/power_preset_stroke"
                     app:strokeWidth="1dp"/>
 
@@ -366,11 +361,6 @@
                     android:textColor="@color/power_preset_text_color"
                     android:textSize="11sp"
                     app:backgroundTint="@color/power_preset_background_tint"
-                    app:icon="@drawable/ic_power_ruce"
-                    app:iconGravity="textStart"
-                    app:iconPadding="4dp"
-                    app:iconSize="16dp"
-                    app:iconTint="@color/power_preset_icon_tint"
                     app:strokeColor="@color/power_preset_stroke"
                     app:strokeWidth="1dp"/>
             </com.google.android.material.button.MaterialButtonToggleGroup>
