@@ -257,7 +257,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:background="@drawable/summary_bg"
+            android:background="@drawable/last_record_bg"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:padding="10dp">
@@ -277,7 +277,7 @@
                 android:layout_height="28dp"
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="8dp"
-                android:background="#90CAF9"/>
+                android:background="@color/last_record_stroke"/>
 
             <TextView
                 android:id="@+id/tvLastRecordCast"
