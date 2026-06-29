@@ -46,11 +46,9 @@ import com.rfidw.app.rfid.UhfManager;
 
 import java.io.File;
 import java.io.InputStream;
-import java.util.Collections;
 import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -74,6 +72,9 @@ public class MainActivity extends AppCompatActivity {
     private List<Tudu> tuduList = new ArrayList<>();
     private Tudu currentTudu;
     private Tudu.Vyhybka currentVyhybka;
+    /** Cache dokončených výhybek pro aktuální TUDU – invaliduje se při změně CSV. */
+    private String cachedVyhybkaTuduCode;
+    private boolean[] vyhybkaCompleteByIndex;
 
     private CsvStore csvStore;
     private CsvAdapter csvAdapter;
@@ -417,16 +418,35 @@ public class MainActivity extends AppCompatActivity {
             expandCard1Body();
             return;
         }
+        if (csvStore == null) {
+            toast("Tabulka se ještě načítá");
+            return;
+        }
         final String tuduCode = currentTudu.code;
         final List<Tudu.Vyhybka> vyhybky = currentTudu.vyhybky;
 
+        setActionStatus("připravuji výhybky…", COLOR_STATUS_BUSY);
+        io.execute(() -> {
+            List<VyhybkaPickerItem> items = buildVyhybkaPickerItems(tuduCode, vyhybky);
+            ui.post(() -> {
+                setActionStatusReady();
+                showVyhybkaPickerDialog(tuduCode, items);
+            });
+        });
+    }
+
+    private void showVyhybkaPickerDialog(String tuduCode, List<VyhybkaPickerItem> items) {
         ListView listView = new ListView(this);
         listView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
-        ArrayAdapter<Tudu.Vyhybka> adapter = new ArrayAdapter<Tudu.Vyhybka>(this,
-                android.R.layout.simple_list_item_single_choice, vyhybky) {
+        int maxHeight = (int) (getResources().getDisplayMetrics().heightPixels * 0.55f);
+        listView.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, maxHeight));
+
+        ArrayAdapter<VyhybkaPickerItem> adapter = new ArrayAdapter<VyhybkaPickerItem>(this,
+                android.R.layout.simple_list_item_single_choice, items) {
             @Override
             public boolean isEnabled(int position) {
-                return !isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position));
+                return !items.get(position).done;
             }
 
             @Override
@@ -434,10 +454,9 @@ public class MainActivity extends AppCompatActivity {
                     android.view.ViewGroup parent) {
                 android.view.View view = super.getView(position, convertView, parent);
                 TextView tv = (TextView) view;
-                Tudu.Vyhybka v = vyhybky.get(position);
-                boolean done = isVyhybkaCompleteInCsv(tuduCode, v);
-                tv.setText(formatVyhybkaPickerLabel(tuduCode, v));
-                if (done) {
+                VyhybkaPickerItem item = items.get(position);
+                tv.setText(item.label);
+                if (item.done) {
                     tv.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.text_muted));
                     tv.setAlpha(0.45f);
                 } else {
@@ -449,8 +468,15 @@ public class MainActivity extends AppCompatActivity {
         };
         listView.setAdapter(adapter);
 
-        int checked = currentVyhybka != null ? vyhybky.indexOf(currentVyhybka) : 0;
-        if (checked < 0) checked = 0;
+        int checked = 0;
+        if (currentVyhybka != null) {
+            for (int i = 0; i < items.size(); i++) {
+                if (items.get(i).vyhybka.cislo == currentVyhybka.cislo) {
+                    checked = i;
+                    break;
+                }
+            }
+        }
         listView.setItemChecked(checked, true);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
@@ -460,15 +486,41 @@ public class MainActivity extends AppCompatActivity {
                 .create();
 
         listView.setOnItemClickListener((parent, v, position, id) -> {
-            if (isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position))) {
+            VyhybkaPickerItem item = items.get(position);
+            if (item.done) {
                 toast("výhybka je již zapsaná v CSV");
                 return;
             }
-            selectVyhybka(vyhybky.get(position), true);
+            selectVyhybka(item.vyhybka, true);
             dialog.dismiss();
         });
 
         dialog.show();
+    }
+
+    private List<VyhybkaPickerItem> buildVyhybkaPickerItems(String tuduCode,
+            List<Tudu.Vyhybka> vyhybky) {
+        ensureVyhybkaCache(tuduCode, vyhybky);
+        List<VyhybkaPickerItem> items = new ArrayList<>(vyhybky.size());
+        for (int i = 0; i < vyhybky.size(); i++) {
+            Tudu.Vyhybka v = vyhybky.get(i);
+            boolean done = vyhybkaCompleteByIndex[i];
+            CharSequence label = formatVyhybkaPickerLabel(tuduCode, v, done);
+            items.add(new VyhybkaPickerItem(v, done, label));
+        }
+        return items;
+    }
+
+    private static final class VyhybkaPickerItem {
+        final Tudu.Vyhybka vyhybka;
+        final boolean done;
+        final CharSequence label;
+
+        VyhybkaPickerItem(Tudu.Vyhybka vyhybka, boolean done, CharSequence label) {
+            this.vyhybka = vyhybka;
+            this.done = done;
+            this.label = label;
+        }
     }
 
     private void setupCollapsibles() {
@@ -1190,6 +1242,7 @@ public class MainActivity extends AppCompatActivity {
             toast("Tabulka je prázdná");
             return;
         }
+        invalidateVyhybkaCache();
         persistCsvAsync();
         refreshCsvTable();
         restoreSelectionFromRow(last);
@@ -1421,6 +1474,7 @@ public class MainActivity extends AppCompatActivity {
             row.vyhybka = d.vyhybka;
             row.cast = d.cast;
             csvStore.upsert(row);
+            invalidateVyhybkaCache();
             persistCsvAsync();
             refreshCsvTable();
         } catch (Exception e) {
@@ -1477,14 +1531,15 @@ public class MainActivity extends AppCompatActivity {
     private void advanceToNextVyhybka() {
         if (currentTudu == null || currentTudu.vyhybky.isEmpty()) return;
         syncCurrentVyhybka();
+        List<Tudu.Vyhybka> vyhybky = currentTudu.vyhybky;
+        ensureVyhybkaCache(currentTudu.code, vyhybky);
         int idx = currentVyhybka != null
                 ? findVyhybkaIndex(currentVyhybka.cislo)
                 : findVyhybkaIndex(epc.vyhybka);
         if (idx < 0) return;
-        for (int i = idx + 1; i < currentTudu.vyhybky.size(); i++) {
-            Tudu.Vyhybka next = currentTudu.vyhybky.get(i);
-            if (!isVyhybkaCompleteInCsv(currentTudu.code, next)) {
-                selectVyhybka(next, true);
+        for (int i = idx + 1; i < vyhybky.size(); i++) {
+            if (!vyhybkaCompleteByIndex[i]) {
+                selectVyhybka(vyhybky.get(i), true);
                 return;
             }
         }
@@ -1492,49 +1547,56 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private Tudu.Vyhybka firstAvailableVyhybka(Tudu t) {
-        for (Tudu.Vyhybka v : t.vyhybky) {
-            if (!isVyhybkaCompleteInCsv(t.code, v)) return v;
+        ensureVyhybkaCache(t.code, t.vyhybky);
+        for (int i = 0; i < t.vyhybky.size(); i++) {
+            if (!vyhybkaCompleteByIndex[i]) return t.vyhybky.get(i);
         }
         return null;
     }
 
     private boolean isVyhybkaCompleteInCsv(String tuduCode, Tudu.Vyhybka v) {
-        return countMissingCasts(tuduCode, v) == 0;
+        if (csvStore == null) return false;
+        if (currentTudu != null && tuduCode.equals(currentTudu.code)) {
+            int idx = findVyhybkaIndex(v.cislo);
+            if (idx >= 0 && vyhybkaCompleteByIndex != null
+                    && tuduCode.equals(cachedVyhybkaTuduCode)
+                    && vyhybkaCompleteByIndex.length == currentTudu.vyhybky.size()) {
+                return vyhybkaCompleteByIndex[idx];
+            }
+        }
+        return csvStore.isVyhybkaComplete(tuduCode, v.cislo, v.castMin, v.castMax);
     }
 
     private int countMissingCasts(String tuduCode, Tudu.Vyhybka v) {
-        Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
-        int missing = 0;
-        for (int c = v.castMin; c <= v.castMax; c++) {
-            if (!written.contains(c)) missing++;
-        }
-        return missing;
+        if (csvStore == null) return v.castMax - v.castMin + 1;
+        int total = v.castMax - v.castMin + 1;
+        int written = csvStore.countWrittenCastsInRange(tuduCode, v.cislo, v.castMin, v.castMax);
+        return total - written;
     }
 
     private int countWrittenCasts(String tuduCode, Tudu.Vyhybka v) {
-        Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
-        int count = 0;
-        for (int c = v.castMin; c <= v.castMax; c++) {
-            if (written.contains(c)) count++;
-        }
-        return count;
+        if (csvStore == null) return 0;
+        return csvStore.countWrittenCastsInRange(tuduCode, v.cislo, v.castMin, v.castMax);
     }
 
     private boolean isVyhybkaPartialInCsv(String tuduCode, Tudu.Vyhybka v) {
+        int total = v.castMax - v.castMin + 1;
         int written = countWrittenCasts(tuduCode, v);
-        return written > 0 && written < v.castMax - v.castMin + 1;
+        return written > 0 && written < total;
     }
 
-    private CharSequence formatVyhybkaPickerLabel(String tuduCode, Tudu.Vyhybka v) {
+    private CharSequence formatVyhybkaPickerLabel(String tuduCode, Tudu.Vyhybka v, boolean done) {
         String prefix = getString(R.string.vyhybka_picker_prefix);
         String cisloStr = String.valueOf(v.cislo);
-        if (!isVyhybkaPartialInCsv(tuduCode, v)) {
+        int total = v.castMax - v.castMin + 1;
+        int written = countWrittenCasts(tuduCode, v);
+        if (done || written <= 0 || written >= total) {
             SpannableString span = new SpannableString(prefix + cisloStr);
             applyVyhybkaAccent(span, prefix.length(), prefix.length() + cisloStr.length());
             return span;
         }
 
-        int missing = countMissingCasts(tuduCode, v);
+        int missing = total - written;
         String missingStr = String.valueOf(missing);
         String sep = getString(R.string.vyhybka_picker_missing_sep);
         String missingPrefix = getString(R.string.vyhybka_picker_missing_prefix);
@@ -1558,16 +1620,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private int firstMissingCast(String tuduCode, Tudu.Vyhybka v) {
-        Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
-        for (int c = v.castMin; c <= v.castMax; c++) {
-            if (!written.contains(c)) return c;
-        }
-        return v.castMin;
+        if (csvStore == null) return v.castMin;
+        return csvStore.firstMissingCast(tuduCode, v.cislo, v.castMin, v.castMax);
     }
 
-    private Set<Integer> getWrittenCastsForVyhybka(String tuduCode, Tudu.Vyhybka v) {
-        if (csvStore == null) return Collections.emptySet();
-        return csvStore.getWrittenCasts(tuduCode, v.cislo);
+    private void invalidateVyhybkaCache() {
+        cachedVyhybkaTuduCode = null;
+        vyhybkaCompleteByIndex = null;
+    }
+
+    private void ensureVyhybkaCache(String tuduCode, List<Tudu.Vyhybka> vyhybky) {
+        if (tuduCode.equals(cachedVyhybkaTuduCode) && vyhybkaCompleteByIndex != null
+                && vyhybkaCompleteByIndex.length == vyhybky.size()) {
+            return;
+        }
+        boolean[] cache = new boolean[vyhybky.size()];
+        if (csvStore != null) {
+            for (int i = 0; i < vyhybky.size(); i++) {
+                Tudu.Vyhybka v = vyhybky.get(i);
+                cache[i] = csvStore.isVyhybkaComplete(tuduCode, v.cislo, v.castMin, v.castMax);
+            }
+        }
+        cachedVyhybkaTuduCode = tuduCode;
+        vyhybkaCompleteByIndex = cache;
     }
 
     // ---------- export CSV ----------
@@ -1681,11 +1756,11 @@ public class MainActivity extends AppCompatActivity {
     private void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
 
     private static int parseInt(String s, int def) {
-        try { return Integer.parseInt(s.replaceAll("[^0-9-]", "")); } catch (Exception e) { return def; }
+        return CsvStore.parseInt(s, def);
     }
 
     private static long parseLong(String s, long def) {
-        try { return Long.parseLong(s.replaceAll("[^0-9-]", "")); } catch (Exception e) { return def; }
+        return CsvStore.parseLong(s, def);
     }
 
     static class SimpleWatcher implements TextWatcher {

@@ -8,13 +8,10 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Výstupní tabulka .CSV.
@@ -48,8 +45,8 @@ public class CsvStore {
     private final File file;
     // zachovává pořadí vložení, klíč = ID_RFID
     private final Map<String, Row> rows = new LinkedHashMap<>();
-    // rychlý index: TUDU|výhybka → množina zapsaných částí
-    private final Map<String, Set<Integer>> castsByVyhybka = new HashMap<>();
+    // rychlý index: TUDU|výhybka → bitmaska zapsaných částí (bit N = část N+1)
+    private final Map<String, Integer> castsByVyhybka = new LinkedHashMap<>();
 
     public CsvStore(File file) {
         this.file = file;
@@ -112,11 +109,37 @@ public class CsvStore {
         return last;
     }
 
-    /** Vrátí množinu částí výhybky, které jsou v CSV pro dané TUDU. */
-    public synchronized Set<Integer> getWrittenCasts(String tuduCode, int vyhybkaCislo) {
-        Set<Integer> casts = castsByVyhybka.get(vyhybkaKey(tuduCode, vyhybkaCislo));
-        if (casts == null || casts.isEmpty()) return Collections.emptySet();
-        return new HashSet<>(casts);
+    /** Počet zapsaných částí v rozmezí. */
+    public synchronized int countWrittenCastsInRange(String tuduCode, int vyhybkaCislo,
+            int castMin, int castMax) {
+        int mask = castsMask(tuduCode, vyhybkaCislo);
+        if (mask == 0) return 0;
+        int count = 0;
+        for (int c = castMin; c <= castMax; c++) {
+            if (hasCast(mask, c)) count++;
+        }
+        return count;
+    }
+
+    /** True pokud jsou v CSV všechny části výhybky v daném rozmezí. */
+    public synchronized boolean isVyhybkaComplete(String tuduCode, int vyhybkaCislo,
+            int castMin, int castMax) {
+        if (castMin > castMax) return true;
+        int mask = castsMask(tuduCode, vyhybkaCislo);
+        for (int c = castMin; c <= castMax; c++) {
+            if (!hasCast(mask, c)) return false;
+        }
+        return true;
+    }
+
+    /** První chybějící část v rozmezí, nebo castMin pokud je vše zapsáno. */
+    public synchronized int firstMissingCast(String tuduCode, int vyhybkaCislo,
+            int castMin, int castMax) {
+        int mask = castsMask(tuduCode, vyhybkaCislo);
+        for (int c = castMin; c <= castMax; c++) {
+            if (!hasCast(mask, c)) return c;
+        }
+        return castMin;
     }
 
     /** Uloží aktuální stav na disk. Volat mimo UI vlákno. */
@@ -134,7 +157,7 @@ public class CsvStore {
             String line;
             boolean first = true;
             while ((line = br.readLine()) != null) {
-                if (line.trim().isEmpty()) continue;
+                if (line.isEmpty()) continue;
                 String[] c = line.split(SEP, -1);
                 if (first) {
                     first = false;
@@ -180,47 +203,116 @@ public class CsvStore {
         }
     }
 
+    private static String normalizeTudu(String tuduCode) {
+        if (tuduCode == null) return "";
+        return tuduCode.trim().toUpperCase(Locale.ROOT);
+    }
+
     private static String vyhybkaKey(String tuduCode, int vyhybkaCislo) {
-        return tuduCode + "\0" + vyhybkaCislo;
+        return normalizeTudu(tuduCode) + '\0' + vyhybkaCislo;
+    }
+
+    private int castsMask(String tuduCode, int vyhybkaCislo) {
+        Integer mask = castsByVyhybka.get(vyhybkaKey(tuduCode, vyhybkaCislo));
+        return mask == null ? 0 : mask;
+    }
+
+    private static boolean hasCast(int mask, int cast) {
+        if (cast < 1 || cast > 31) return false;
+        return (mask & (1 << (cast - 1))) != 0;
+    }
+
+    private static int castBit(int cast) {
+        if (cast < 1 || cast > 31) return 0;
+        return 1 << (cast - 1);
     }
 
     private void addToCastIndex(Row row) {
         int cast = parseInt(row.cast, -1);
         int vyhybka = parseInt(row.vyhybka, -1);
         if (row.tudu == null || row.tudu.isEmpty() || vyhybka < 0 || cast < 0) return;
-        castsByVyhybka
-                .computeIfAbsent(vyhybkaKey(row.tudu, vyhybka), k -> new HashSet<>())
-                .add(cast);
+        String key = vyhybkaKey(row.tudu, vyhybka);
+        int bit = castBit(cast);
+        if (bit == 0) return;
+        castsByVyhybka.merge(key, bit, (a, b) -> a | b);
     }
 
     private void removeFromCastIndex(Row row) {
         int cast = parseInt(row.cast, -1);
         int vyhybka = parseInt(row.vyhybka, -1);
         if (row.tudu == null || row.tudu.isEmpty() || vyhybka < 0 || cast < 0) return;
-        Set<Integer> casts = castsByVyhybka.get(vyhybkaKey(row.tudu, vyhybka));
-        if (casts == null) return;
-        casts.remove(cast);
-        if (casts.isEmpty()) castsByVyhybka.remove(vyhybkaKey(row.tudu, vyhybka));
+        String key = vyhybkaKey(row.tudu, vyhybka);
+        Integer mask = castsByVyhybka.get(key);
+        if (mask == null) return;
+        int next = mask & ~castBit(cast);
+        if (next == 0) castsByVyhybka.remove(key);
+        else castsByVyhybka.put(key, next);
     }
 
     private static String get(String[] arr, int i) {
         return i < arr.length ? arr[i].trim() : "";
     }
 
-    private static int parseInt(String s, int def) {
-        try {
-            return Integer.parseInt(s.replaceAll("[^0-9-]", ""));
-        } catch (Exception e) {
-            return def;
+    /** Rychlé parsování celého čísla bez regexu. */
+    static int parseInt(String s, int def) {
+        if (s == null) return def;
+        int len = s.length();
+        int i = 0;
+        while (i < len && s.charAt(i) <= ' ') i++;
+        if (i >= len) return def;
+
+        boolean neg = false;
+        if (s.charAt(i) == '-') {
+            neg = true;
+            i++;
+            if (i >= len) return def;
         }
+
+        long val = 0;
+        boolean any = false;
+        while (i < len) {
+            char c = s.charAt(i++);
+            if (c < '0' || c > '9') {
+                if (!any) return def;
+                break;
+            }
+            any = true;
+            val = val * 10 + (c - '0');
+            if (val > Integer.MAX_VALUE) return def;
+        }
+        if (!any) return def;
+        int out = (int) val;
+        return neg ? -out : out;
     }
 
-    private static long parseLong(String s, long def) {
-        try {
-            return Long.parseLong(s.replaceAll("[^0-9-]", ""));
-        } catch (Exception e) {
-            return def;
+    static long parseLong(String s, long def) {
+        if (s == null) return def;
+        int len = s.length();
+        int i = 0;
+        while (i < len && s.charAt(i) <= ' ') i++;
+        if (i >= len) return def;
+
+        boolean neg = false;
+        if (s.charAt(i) == '-') {
+            neg = true;
+            i++;
+            if (i >= len) return def;
         }
+
+        long val = 0;
+        boolean any = false;
+        while (i < len) {
+            char c = s.charAt(i++);
+            if (c < '0' || c > '9') {
+                if (!any) return def;
+                break;
+            }
+            any = true;
+            val = val * 10 + (c - '0');
+            if (val < 0) return def;
+        }
+        if (!any) return def;
+        return neg ? -val : val;
     }
 
     private static String join(String[] cols) {
