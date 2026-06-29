@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -119,6 +120,39 @@ public class CsvStore {
         return new HashSet<>(casts);
     }
 
+    /** Počet zapsaných částí v rozmezí – bez kopírování celé množiny. */
+    public synchronized int countWrittenCastsInRange(String tuduCode, int vyhybkaCislo,
+            int castMin, int castMax) {
+        Set<Integer> casts = castsByVyhybka.get(vyhybkaKey(tuduCode, vyhybkaCislo));
+        if (casts == null || casts.isEmpty()) return 0;
+        int count = 0;
+        for (int c = castMin; c <= castMax; c++) {
+            if (casts.contains(c)) count++;
+        }
+        return count;
+    }
+
+    /** True pokud jsou v CSV všechny části výhybky v daném rozmezí. */
+    public synchronized boolean isVyhybkaComplete(String tuduCode, int vyhybkaCislo,
+            int castMin, int castMax) {
+        Set<Integer> casts = castsByVyhybka.get(vyhybkaKey(tuduCode, vyhybkaCislo));
+        if (casts == null || casts.isEmpty()) return castMin > castMax;
+        for (int c = castMin; c <= castMax; c++) {
+            if (!casts.contains(c)) return false;
+        }
+        return true;
+    }
+
+    /** První chybějící část v rozmezí, nebo castMin pokud je vše zapsáno. */
+    public synchronized int firstMissingCast(String tuduCode, int vyhybkaCislo,
+            int castMin, int castMax) {
+        Set<Integer> casts = castsByVyhybka.get(vyhybkaKey(tuduCode, vyhybkaCislo));
+        for (int c = castMin; c <= castMax; c++) {
+            if (casts == null || !casts.contains(c)) return c;
+        }
+        return castMin;
+    }
+
     /** Uloží aktuální stav na disk. Volat mimo UI vlákno. */
     public synchronized void persist() {
         save();
@@ -180,8 +214,13 @@ public class CsvStore {
         }
     }
 
+    private static String normalizeTudu(String tuduCode) {
+        if (tuduCode == null) return "";
+        return tuduCode.trim().toUpperCase(Locale.ROOT);
+    }
+
     private static String vyhybkaKey(String tuduCode, int vyhybkaCislo) {
-        return tuduCode + "\0" + vyhybkaCislo;
+        return normalizeTudu(tuduCode) + "\0" + vyhybkaCislo;
     }
 
     private void addToCastIndex(Row row) {

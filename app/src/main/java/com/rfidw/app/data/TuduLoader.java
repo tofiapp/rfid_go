@@ -9,8 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Načítání úseků TUDU a jejich výhybek ze souboru .CSV nebo .SQL.
@@ -70,21 +68,44 @@ public class TuduLoader {
 
     // ------------------------------------------------------------------ SQL
 
-    private static final Pattern INSERT =
-            Pattern.compile("insert\\s+into\\s+[^(]*?\\bvalues\\b(.*?);",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-    private static final Pattern TUPLE = Pattern.compile("\\(([^)]*)\\)");
-
     public static List<Tudu> parseSql(String content) {
         Map<String, Tudu> map = new LinkedHashMap<>();
-        Matcher mIns = INSERT.matcher(content);
-        while (mIns.find()) {
-            String valuesPart = mIns.group(1);
-            Matcher mTup = TUPLE.matcher(valuesPart);
-            while (mTup.find()) {
-                String[] cols = splitSqlTuple(mTup.group(1));
-                addRow(map, cols);
+        StringBuilder tupleBuf = new StringBuilder();
+        boolean inStr = false;
+        char strQuote = 0;
+        int depth = 0;
+
+        for (int i = 0; i < content.length(); i++) {
+            char c = content.charAt(i);
+            if (inStr) {
+                tupleBuf.append(c);
+                if (c == strQuote) inStr = false;
+                continue;
             }
+            if (c == '\'' || c == '"') {
+                inStr = true;
+                strQuote = c;
+                tupleBuf.append(c);
+                continue;
+            }
+            if (c == '(') {
+                if (depth == 0) tupleBuf.setLength(0);
+                depth++;
+                tupleBuf.append(c);
+                continue;
+            }
+            if (c == ')') {
+                if (depth > 0) {
+                    tupleBuf.append(c);
+                    depth--;
+                    if (depth == 0) {
+                        String tuple = tupleBuf.substring(1, tupleBuf.length() - 1);
+                        addRow(map, splitSqlTuple(tuple));
+                    }
+                }
+                continue;
+            }
+            if (depth > 0) tupleBuf.append(c);
         }
         return new ArrayList<>(map.values());
     }
