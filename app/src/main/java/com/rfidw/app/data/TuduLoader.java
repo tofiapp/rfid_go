@@ -1,5 +1,7 @@
 package com.rfidw.app.data;
 
+import com.rfidw.app.csv.CsvStore;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -9,8 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Načítání úseků TUDU a jejich výhybek ze souboru .CSV nebo .SQL.
@@ -32,58 +32,86 @@ public class TuduLoader {
     /** Načte z libovolného streamu, typ se zvolí podle názvu souboru. */
     public static List<Tudu> load(InputStream in, String fileName) throws Exception {
         String name = fileName == null ? "" : fileName.toLowerCase(Locale.ROOT);
-        String content = readAll(in);
         if (name.endsWith(".sql")) {
-            return parseSql(content);
+            return parseSql(in);
         }
-        return parseCsv(content);
+        return parseCsv(in);
     }
 
     // ------------------------------------------------------------------ CSV
 
-    public static List<Tudu> parseCsv(String content) {
+    public static List<Tudu> parseCsv(InputStream in) throws Exception {
         Map<String, Tudu> map = new LinkedHashMap<>();
-        String[] lines = content.split("\\r?\\n");
-        boolean firstChecked = false;
-        for (String raw : lines) {
-            String line = raw.trim();
-            if (line.isEmpty() || line.startsWith("#")) continue;
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            String line;
+            boolean firstChecked = false;
+            while ((line = br.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) continue;
 
-            String sep = line.contains(";") ? ";" : ",";
-            String[] cols = line.split(sep, -1);
-            for (int i = 0; i < cols.length; i++) cols[i] = unquote(cols[i].trim());
+                String sep = line.contains(";") ? ";" : ",";
+                String[] cols = line.split(sep, -1);
+                for (int i = 0; i < cols.length; i++) cols[i] = unquote(cols[i].trim());
 
-            // přeskočit hlavičku
-            if (!firstChecked) {
-                firstChecked = true;
-                String c0 = cols[0].toUpperCase(Locale.ROOT);
-                String c1 = cols.length > 1 ? cols[1].toUpperCase(Locale.ROOT) : "";
-                if (c0.contains("TUDU") || c1.contains("VYHYB") || c1.contains("VÝHYB")) {
-                    continue;
+                if (!firstChecked) {
+                    firstChecked = true;
+                    String c0 = cols[0].toUpperCase(Locale.ROOT);
+                    String c1 = cols.length > 1 ? cols[1].toUpperCase(Locale.ROOT) : "";
+                    if (c0.contains("TUDU") || c1.contains("VYHYB") || c1.contains("VÝHYB")) {
+                        continue;
+                    }
                 }
-            }
 
-            addRow(map, cols);
+                addRow(map, cols);
+            }
         }
         return new ArrayList<>(map.values());
     }
 
     // ------------------------------------------------------------------ SQL
 
-    private static final Pattern INSERT =
-            Pattern.compile("insert\\s+into\\s+[^(]*?\\bvalues\\b(.*?);",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-    private static final Pattern TUPLE = Pattern.compile("\\(([^)]*)\\)");
-
-    public static List<Tudu> parseSql(String content) {
+    public static List<Tudu> parseSql(InputStream in) throws Exception {
         Map<String, Tudu> map = new LinkedHashMap<>();
-        Matcher mIns = INSERT.matcher(content);
-        while (mIns.find()) {
-            String valuesPart = mIns.group(1);
-            Matcher mTup = TUPLE.matcher(valuesPart);
-            while (mTup.find()) {
-                String[] cols = splitSqlTuple(mTup.group(1));
-                addRow(map, cols);
+        StringBuilder tupleBuf = new StringBuilder();
+        boolean inStr = false;
+        char strQuote = 0;
+        int depth = 0;
+
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            int ch;
+            while ((ch = br.read()) != -1) {
+                char c = (char) ch;
+                if (inStr) {
+                    tupleBuf.append(c);
+                    if (c == strQuote) inStr = false;
+                    continue;
+                }
+                if (c == '\'' || c == '"') {
+                    inStr = true;
+                    strQuote = c;
+                    if (depth > 0) tupleBuf.append(c);
+                    continue;
+                }
+                if (c == '(') {
+                    if (depth == 0) tupleBuf.setLength(0);
+                    depth++;
+                    tupleBuf.append(c);
+                    continue;
+                }
+                if (c == ')') {
+                    if (depth > 0) {
+                        tupleBuf.append(c);
+                        depth--;
+                        if (depth == 0) {
+                            String tuple = tupleBuf.substring(1, tupleBuf.length() - 1);
+                            addRow(map, splitSqlTuple(tuple));
+                        }
+                    }
+                    continue;
+                }
+                if (depth > 0) tupleBuf.append(c);
             }
         }
         return new ArrayList<>(map.values());
@@ -135,8 +163,8 @@ public class TuduLoader {
     }
 
     private static Integer toInt(String s) {
-        try { return Integer.parseInt(s.replaceAll("[^0-9-]", "")); }
-        catch (Exception e) { return null; }
+        int v = CsvStore.parseInt(s, Integer.MIN_VALUE);
+        return v == Integer.MIN_VALUE ? null : v;
     }
 
     private static String unquote(String s) {
@@ -146,16 +174,5 @@ public class TuduLoader {
             return s.substring(1, s.length() - 1);
         }
         return s;
-    }
-
-    private static String readAll(InputStream in) throws Exception {
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(in, StandardCharsets.UTF_8))) {
-            char[] buf = new char[4096];
-            int n;
-            while ((n = br.read(buf)) > 0) sb.append(buf, 0, n);
-        }
-        return sb.toString();
     }
 }
