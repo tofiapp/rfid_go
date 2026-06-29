@@ -46,11 +46,9 @@ import com.rfidw.app.rfid.UhfManager;
 
 import java.io.File;
 import java.io.InputStream;
-import java.util.Collections;
-import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -417,16 +415,43 @@ public class MainActivity extends AppCompatActivity {
             expandCard1Body();
             return;
         }
+        if (csvStore == null) {
+            toast("Tabulka se ještě načítá");
+            return;
+        }
         final String tuduCode = currentTudu.code;
         final List<Tudu.Vyhybka> vyhybky = currentTudu.vyhybky;
 
+        Runnable open = () -> {
+            List<VyhybkaPickerItem> items = buildVyhybkaPickerItems(tuduCode, vyhybky);
+            showVyhybkaPickerDialog(tuduCode, items);
+        };
+        if (vyhybky.size() > 80) {
+            setActionStatus("připravuji výhybky…", COLOR_STATUS_BUSY);
+            io.execute(() -> {
+                List<VyhybkaPickerItem> items = buildVyhybkaPickerItems(tuduCode, vyhybky);
+                ui.post(() -> {
+                    setActionStatusReady();
+                    showVyhybkaPickerDialog(tuduCode, items);
+                });
+            });
+        } else {
+            open.run();
+        }
+    }
+
+    private void showVyhybkaPickerDialog(String tuduCode, List<VyhybkaPickerItem> items) {
         ListView listView = new ListView(this);
         listView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
-        ArrayAdapter<Tudu.Vyhybka> adapter = new ArrayAdapter<Tudu.Vyhybka>(this,
-                android.R.layout.simple_list_item_single_choice, vyhybky) {
+        int maxHeight = (int) (getResources().getDisplayMetrics().heightPixels * 0.55f);
+        listView.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, maxHeight));
+
+        ArrayAdapter<VyhybkaPickerItem> adapter = new ArrayAdapter<VyhybkaPickerItem>(this,
+                android.R.layout.simple_list_item_single_choice, items) {
             @Override
             public boolean isEnabled(int position) {
-                return !isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position));
+                return !items.get(position).done;
             }
 
             @Override
@@ -434,10 +459,9 @@ public class MainActivity extends AppCompatActivity {
                     android.view.ViewGroup parent) {
                 android.view.View view = super.getView(position, convertView, parent);
                 TextView tv = (TextView) view;
-                Tudu.Vyhybka v = vyhybky.get(position);
-                boolean done = isVyhybkaCompleteInCsv(tuduCode, v);
-                tv.setText(formatVyhybkaPickerLabel(tuduCode, v));
-                if (done) {
+                VyhybkaPickerItem item = items.get(position);
+                tv.setText(item.label);
+                if (item.done) {
                     tv.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.text_muted));
                     tv.setAlpha(0.45f);
                 } else {
@@ -449,8 +473,15 @@ public class MainActivity extends AppCompatActivity {
         };
         listView.setAdapter(adapter);
 
-        int checked = currentVyhybka != null ? vyhybky.indexOf(currentVyhybka) : 0;
-        if (checked < 0) checked = 0;
+        int checked = 0;
+        if (currentVyhybka != null) {
+            for (int i = 0; i < items.size(); i++) {
+                if (items.get(i).vyhybka.cislo == currentVyhybka.cislo) {
+                    checked = i;
+                    break;
+                }
+            }
+        }
         listView.setItemChecked(checked, true);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
@@ -460,15 +491,39 @@ public class MainActivity extends AppCompatActivity {
                 .create();
 
         listView.setOnItemClickListener((parent, v, position, id) -> {
-            if (isVyhybkaCompleteInCsv(tuduCode, vyhybky.get(position))) {
+            VyhybkaPickerItem item = items.get(position);
+            if (item.done) {
                 toast("výhybka je již zapsaná v CSV");
                 return;
             }
-            selectVyhybka(vyhybky.get(position), true);
+            selectVyhybka(item.vyhybka, true);
             dialog.dismiss();
         });
 
         dialog.show();
+    }
+
+    private List<VyhybkaPickerItem> buildVyhybkaPickerItems(String tuduCode,
+            List<Tudu.Vyhybka> vyhybky) {
+        List<VyhybkaPickerItem> items = new ArrayList<>(vyhybky.size());
+        for (Tudu.Vyhybka v : vyhybky) {
+            boolean done = isVyhybkaCompleteInCsv(tuduCode, v);
+            CharSequence label = formatVyhybkaPickerLabel(tuduCode, v);
+            items.add(new VyhybkaPickerItem(v, done, label));
+        }
+        return items;
+    }
+
+    private static final class VyhybkaPickerItem {
+        final Tudu.Vyhybka vyhybka;
+        final boolean done;
+        final CharSequence label;
+
+        VyhybkaPickerItem(Tudu.Vyhybka vyhybka, boolean done, CharSequence label) {
+            this.vyhybka = vyhybka;
+            this.done = done;
+            this.label = label;
+        }
     }
 
     private void setupCollapsibles() {
@@ -1499,42 +1554,40 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isVyhybkaCompleteInCsv(String tuduCode, Tudu.Vyhybka v) {
-        return countMissingCasts(tuduCode, v) == 0;
+        if (csvStore == null) return false;
+        return csvStore.isVyhybkaComplete(tuduCode, v.cislo, v.castMin, v.castMax);
     }
 
     private int countMissingCasts(String tuduCode, Tudu.Vyhybka v) {
-        Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
-        int missing = 0;
-        for (int c = v.castMin; c <= v.castMax; c++) {
-            if (!written.contains(c)) missing++;
-        }
-        return missing;
+        if (csvStore == null) return v.castMax - v.castMin + 1;
+        int total = v.castMax - v.castMin + 1;
+        int written = csvStore.countWrittenCastsInRange(tuduCode, v.cislo, v.castMin, v.castMax);
+        return total - written;
     }
 
     private int countWrittenCasts(String tuduCode, Tudu.Vyhybka v) {
-        Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
-        int count = 0;
-        for (int c = v.castMin; c <= v.castMax; c++) {
-            if (written.contains(c)) count++;
-        }
-        return count;
+        if (csvStore == null) return 0;
+        return csvStore.countWrittenCastsInRange(tuduCode, v.cislo, v.castMin, v.castMax);
     }
 
     private boolean isVyhybkaPartialInCsv(String tuduCode, Tudu.Vyhybka v) {
+        int total = v.castMax - v.castMin + 1;
         int written = countWrittenCasts(tuduCode, v);
-        return written > 0 && written < v.castMax - v.castMin + 1;
+        return written > 0 && written < total;
     }
 
     private CharSequence formatVyhybkaPickerLabel(String tuduCode, Tudu.Vyhybka v) {
         String prefix = getString(R.string.vyhybka_picker_prefix);
         String cisloStr = String.valueOf(v.cislo);
-        if (!isVyhybkaPartialInCsv(tuduCode, v)) {
+        int total = v.castMax - v.castMin + 1;
+        int written = countWrittenCasts(tuduCode, v);
+        if (written <= 0 || written >= total) {
             SpannableString span = new SpannableString(prefix + cisloStr);
             applyVyhybkaAccent(span, prefix.length(), prefix.length() + cisloStr.length());
             return span;
         }
 
-        int missing = countMissingCasts(tuduCode, v);
+        int missing = total - written;
         String missingStr = String.valueOf(missing);
         String sep = getString(R.string.vyhybka_picker_missing_sep);
         String missingPrefix = getString(R.string.vyhybka_picker_missing_prefix);
@@ -1558,16 +1611,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private int firstMissingCast(String tuduCode, Tudu.Vyhybka v) {
-        Set<Integer> written = getWrittenCastsForVyhybka(tuduCode, v);
-        for (int c = v.castMin; c <= v.castMax; c++) {
-            if (!written.contains(c)) return c;
-        }
-        return v.castMin;
-    }
-
-    private Set<Integer> getWrittenCastsForVyhybka(String tuduCode, Tudu.Vyhybka v) {
-        if (csvStore == null) return Collections.emptySet();
-        return csvStore.getWrittenCasts(tuduCode, v.cislo);
+        if (csvStore == null) return v.castMin;
+        return csvStore.firstMissingCast(tuduCode, v.cislo, v.castMin, v.castMax);
     }
 
     // ---------- export CSV ----------
